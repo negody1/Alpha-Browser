@@ -1,0 +1,23 @@
+{
+  "name": "alpha-browser",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Alpha Browser — desktop browser with smart local routing",
+  "scripts": {
+    "dev": "pnpm --filter @alpha/desktop-electron dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "proxy:fetch-bin": "powershell -ExecutionPolicy Bypass -File scripts/windows/fetch-sing-box.ps1",
+    "proxy:verify-bin": "powershell -ExecutionPolicy Bypass -File scripts/windows/verify-sing-box.ps1",
+    "proxy:smoke-test": "node scripts/proxy-smoke-test.mjs",
+    "proxy:validate-remote": "node scripts/proxy-remote-validate.mjs",
+    "dist:win": "pnpm run proxy:fetch-bin && pnpm --filter @alpha/desktop-electron dist:win && pnpm run validate:packaged",
+    "dist:win:nofetch": "pnpm --filter @alpha/desktop-electron dist:win && pnpm run validate:packaged",
+    "validate:packaged": "node scripts/validate-packaged.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@9.15.0"
+}

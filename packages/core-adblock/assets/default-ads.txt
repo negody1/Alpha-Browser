@@ -1,0 +1,203 @@
+# Alpha Adblock — default ads/analytics list (MVP, lightweight)
+#
+# Format (separator may be ':' or '='):
+#   domain:example.com    → block example.com and all subdomains
+#   host:ads.example.com  → block this host (and its subdomains) only
+#   contains:substring    → block if the URL contains this literal substring
+#
+# Scope (MVP): block well-known ad networks and analytics endpoints only.
+# Deliberately conservative — main frames are never blocked (see engine),
+# and we use host: (not domain:) for analytics subdomains of otherwise-legit
+# sites so we never take down the parent site. No cosmetic / ABP filtering.
+
+# ── Google ads / analytics ──
+domain:doubleclick.net
+domain:2mdn.net
+domain:googlesyndication.com
+domain:googleadservices.com
+domain:googletagservices.com
+domain:googletagmanager.com
+domain:google-analytics.com
+domain:adservice.google.com
+domain:app-measurement.com
+
+# ── Major programmatic ad exchanges / networks ──
+domain:adnxs.com
+domain:adsrvr.org
+domain:rubiconproject.com
+domain:pubmatic.com
+domain:openx.net
+domain:casalemedia.com
+domain:bidswitch.net
+domain:moatads.com
+domain:amazon-adsystem.com
+domain:adsystem.com
+domain:criteo.com
+domain:criteo.net
+domain:taboola.com
+domain:outbrain.com
+domain:scorecardresearch.com
+domain:quantserve.com
+domain:adcolony.com
+domain:applovin.com
+
+# ── Meta / Facebook pixel (host-scoped, do NOT block facebook.com) ──
+host:connect.facebook.net
+
+# ── TikTok ads / analytics (host-scoped) ──
+host:analytics.tiktok.com
+host:ads.tiktok.com
+host:business-api.tiktok.com
+
+# ── Yandex ads / Metrika (host/domain-scoped, do NOT block yandex.ru) ──
+host:mc.yandex.ru
+host:mc.yandex.com
+host:an.yandex.ru
+domain:yandexadexchange.net
+domain:adfox.ru
+
+# ── VK / Mail.ru ads & metrics (host-scoped) ──
+host:ads.vk.com
+host:top-fwz1.mail.ru
+domain:adriver.ru
+
+# ── Conservative URL-substring rules (kept minimal to avoid false positives) ──
+contains:/pagead/
+contains:adservice
+
+# ============================================================================
+# Expanded network list (release polish). domain: = block host + subdomains;
+# host: = block that subdomain only (parent service stays usable). Curated to
+# avoid first-party CDNs, fonts, recaptcha, and video hosts (no site breakage).
+# ============================================================================
+
+# ── Google ad/measurement extras (host-scoped for shared infra) ──
+host:pagead2.googlesyndication.com
+host:securepubads.g.doubleclick.net
+host:pubads.g.doubleclick.net
+domain:admob.com
+domain:doubleclick.com
+
+# ── Display / programmatic SSP & exchanges ──
+domain:smartadserver.com
+domain:adform.net
+domain:contextweb.com
+domain:gumgum.com
+domain:sharethrough.com
+domain:teads.tv
+domain:spotxchange.com
+domain:spotx.tv
+domain:yieldmo.com
+domain:33across.com
+domain:districtm.io
+domain:indexww.com
+domain:lijit.com
+domain:sovrn.com
+domain:gammaplatform.com
+domain:adtelligent.com
+domain:adkernel.com
+domain:smartyads.com
+domain:loopme.com
+domain:emxdgt.com
+domain:3lift.com
+domain:triplelift.com
+domain:bidr.io
+domain:adingo.jp
+
+# ── Verification / attribution / data brokers ──
+domain:adsafeprotected.com
+domain:doubleverify.com
+domain:adroll.com
+domain:mathtag.com
+domain:rlcdn.com
+domain:agkn.com
+domain:bluekai.com
+domain:demdex.net
+domain:everesttech.net
+domain:rfihub.com
+domain:crwdcntrl.net
+domain:tapad.com
+domain:exelator.com
+domain:adsymptotic.com
+domain:krxd.net
+domain:eyeota.net
+domain:nr-data.net
+
+# ── Product analytics / session trackers (beacon-only hosts) ──
+domain:hotjar.com
+domain:mouseflow.com
+domain:fullstory.com
+domain:mixpanel.com
+domain:segment.io
+domain:amplitude.com
+domain:branch.io
+domain:appsflyer.com
+domain:adjust.com
+domain:kochava.com
+domain:chartbeat.com
+domain:parsely.com
+domain:parse.ly
+domain:sail-horizon.com
+domain:clarity.ms
+domain:matomo.cloud
+
+# ── Native / content-recommendation ad widgets (news sites) ──
+domain:revcontent.com
+domain:mgid.com
+domain:adblade.com
+domain:zergnet.com
+domain:plista.com
+domain:ligatus.com
+domain:dianomi.com
+domain:engageya.com
+domain:nativeroll.tv
+domain:relap.io
+domain:lentainform.com
+domain:marketgid.com
+domain:directadvert.ru
+domain:buzzoola.com
+domain:gnezdo.ru
+
+# ── Mobile / SDK ad networks ──
+domain:inmobi.com
+domain:smaato.net
+domain:mopub.com
+domain:vungle.com
+domain:chartboost.com
+domain:flurry.com
+domain:tapjoy.com
+domain:startappservice.com
+domain:supersonicads.com
+domain:ironsrc.com
+domain:unity3d.com
+domain:adtrace.io
+
+# ── Pop-under / push-notification ad networks (intrusive popups) ──
+domain:propellerads.com
+domain:propellerpops.com
+domain:popads.net
+domain:popcash.net
+domain:adsterra.com
+domain:hilltopads.com
+domain:exoclick.com
+domain:juicyads.com
+domain:trafficjunky.com
+domain:clickadu.com
+domain:ad-maven.com
+domain:push-house.com
+domain:richpush.co
+domain:notix.co
+domain:onclickalgo.com
+domain:onclickperformance.com
+domain:adnium.com
+domain:adskeeper.com
+domain:mybetterdeals.io
+
+# ── RU/CIS analytics & counters (host/domain-scoped) ──
+host:counter.yadro.ru
+domain:gemius.pl
+domain:gemius.com
+domain:sape.ru
+domain:rtb-media.ru
+domain:otm-r.com
+host:top100.rambler.ru

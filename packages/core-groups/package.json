@@ -1,0 +1,10 @@
+{
+  "name": "@alpha/core-groups",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc --noEmit", "build": "tsc --noEmit" },
+  "dependencies": { "@alpha/shared-types": "workspace:*" },
+  "devDependencies": { "typescript": "^5.7.3" }
+}

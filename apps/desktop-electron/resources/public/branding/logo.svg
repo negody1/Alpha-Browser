@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
+  <defs>
+    <radialGradient id="g1" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(128 76) rotate(90) scale(160)">
+      <stop stop-color="#9B6CFF" stop-opacity="0.95"/>
+      <stop offset="0.55" stop-color="#7A4DFF" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#0B0D12" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="g2" x1="64" y1="48" x2="192" y2="208" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#EDE7FF"/>
+      <stop offset="0.45" stop-color="#BDA7FF"/>
+      <stop offset="1" stop-color="#7A4DFF"/>
+    </linearGradient>
+    <filter id="soft" x="-40" y="-40" width="336" height="336" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.35 0"/>
+      <feBlend mode="normal" in2="SourceGraphic" result="shape"/>
+    </filter>
+  </defs>
+
+  <!-- transparent background; glow only -->
+  <circle cx="128" cy="128" r="92" fill="url(#g1)"/>
+
+  <!-- Alpha monogram -->
+  <g filter="url(#soft)">
+    <path
+      d="M128 52c-4 0-7 2-9 6l-54 140c-2 5 1 10 7 10h20c4 0 7-2 8-6l11-30h56l11 30c1 4 4 6 8 6h20c6 0 9-5 7-10L137 58c-2-4-5-6-9-6Zm-6 98 19-52 19 52h-38Z"
+      fill="url(#g2)"
+    />
+  </g>
+</svg>
+

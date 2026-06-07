@@ -1,0 +1,27 @@
+:root {
+  --overlay-bg: #0e1116;
+  --overlay-menu-bg: rgba(22, 27, 34, 0.96);
+  --overlay-menu-border: rgba(255, 255, 255, 0.1);
+  --overlay-danger: #ff6b6b;
+  --overlay-radius: 12px;
+  --overlay-border: rgba(255, 255, 255, 0.08);
+  --overlay-text: rgba(255, 255, 255, 0.92);
+  --overlay-text-muted: rgba(255, 255, 255, 0.55);
+  --overlay-accent: #7a4dff;
+  --overlay-accent-soft: #9b6cff;
+  --overlay-surface: rgba(255, 255, 255, 0.045);
+  --overlay-font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+  font-family: var(--overlay-font);
+  color: var(--overlay-text);
+  font-size: 14px;
+}

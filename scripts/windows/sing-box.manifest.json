@@ -1,0 +1,8 @@
+{
+  "$comment": "Pinned sing-box release used by Alpha Browser proxy transport. To bump: change 'version', clear the matching 'sha256' to \"\", run scripts/windows/fetch-sing-box.ps1 (it downloads and prints the computed SHA256), confirm that hash on the official release page, paste it back here, then re-run the script to verify + install.",
+  "repo": "SagerNet/sing-box",
+  "version": "1.11.15",
+  "sha256": {
+    "windows-amd64": "9acbda81d7a9a93d8d0616990cf8b804523adfcd0215d11a2dd9370746d2be28"
+  }
+}

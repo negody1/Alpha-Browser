@@ -1,0 +1,51 @@
+{
+  "name": "@alpha/desktop-electron",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Alpha Browser — приватный браузер с пер-табовой маршрутизацией DIRECT/PROXY",
+  "productName": "Alpha Browser",
+  "author": "Alpha Browser",
+  "homepage": "https://github.com/alpha-browser/alpha-browser",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/alpha-browser/alpha-browser.git"
+  },
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "lint": "echo \"lint pending\"",
+    "sync:resources": "node ../../scripts/sync-adblock-assets.mjs",
+    "dist:win": "node ../../scripts/sync-adblock-assets.mjs && electron-vite build && electron-builder --win"
+  },
+  "dependencies": {
+    "@alpha/core-adblock": "workspace:*",
+    "@alpha/core-groups": "workspace:*",
+    "@alpha/core-history": "workspace:*",
+    "@alpha/core-passwords": "workspace:*",
+    "@alpha/core-routing": "workspace:*",
+    "@alpha/shared-types": "workspace:*",
+    "electron-store": "^8.2.0",
+    "lucide-react": "^0.469.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zod": "^3.24.1",
+    "zustand": "^5.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.10",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "^2.3.0",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.3",
+    "vite": "^5.4.11"
+  }
+}

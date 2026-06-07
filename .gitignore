@@ -1,0 +1,63 @@
+node_modules
+dist
+out
+release
+*.log
+.DS_Store
+.env
+.env.*
+!.env.example
+*.local
+coverage
+.turbo
+*.tsbuildinfo
+.electron-cache
+
+# sing-box proxy binary — delivered via scripts/windows/fetch-sing-box.ps1, never committed
+apps/desktop-electron/resources/bin/sing-box
+apps/desktop-electron/resources/bin/sing-box.exe
+
+# Generated AdBlock filter copy — synced from packages/core-adblock/assets by
+# scripts/sync-adblock-assets.mjs (run in dist:win). Canonical source is tracked.
+apps/desktop-electron/resources/adblock/
+
+# Remote transport profile (P0-D) — real VLESS/Reality credentials, never committed.
+# Use alpha-remote-profile.example.json as a template; this local copy is ignored.
+alpha-remote-profile.local.json
+**/alpha-remote-profile.local.json
+
+# --- release-prep hardening (Phase 2) ---
+build/
+.cache/
+tmp/
+temp/
+screenshots/
+*.tmp
+*.bak
+*.validation-bak
+*.corrupt-*
+*.pid
+
+# packaged installers / binaries (no binaries in the repo)
+*.exe
+*.msi
+*.dmg
+*.AppImage
+*.snap
+*.deb
+*.rpm
+*.nupkg
+*.blockmap
+
+# archives
+*.zip
+*.7z
+*.rar
+*.tar
+*.tar.gz
+*.tgz
+*.gz
+
+# stray backup copies / dirs
+*-backup-*/
+backups/

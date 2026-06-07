@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Alpha Login Test</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body { font: 16px system-ui, sans-serif; background: #0f1116; color: #e6e8ee; display: grid; place-items: center; min-height: 100vh; margin: 0; }
+      form { display: grid; gap: 12px; width: 280px; padding: 24px; background: #171a21; border: 1px solid rgba(255,255,255,.1); border-radius: 12px; }
+      h1 { font-size: 18px; margin: 0 0 8px; }
+      input { padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,.15); background: #0f1116; color: #e6e8ee; }
+      button { padding: 10px 12px; border-radius: 8px; border: 0; background: #6d5efc; color: #fff; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <!-- Classic top-frame form: GET -> same-origin welcome.html (triggers did-navigate). -->
+    <form action="welcome.html" method="get" autocomplete="on">
+      <h1>Alpha Password Manager Test</h1>
+      <input type="text" name="username" autocomplete="username" placeholder="username" />
+      <input type="password" name="password" autocomplete="current-password" placeholder="password" />
+      <button type="submit">Sign in</button>
+    </form>
+  </body>
+</html>

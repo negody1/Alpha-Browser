@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Alpha NTP Preview</title>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: #0E1116; color: #fff; }
+:root {
+  --color-bg: #0e1116;
+  --color-surface: #161b22;
+  --color-surface-hover: #1d2530;
+  --color-accent: #7a4dff;
+  --color-accent-soft: #9b6cff;
+  --color-text-primary: #f5f7fa;
+  --color-text-secondary: #97a3b6;
+  --color-border: rgba(255, 255, 255, 0.08);
+  --radius-lg: 18px;
+  --radius-md: 14px;
+  --motion: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.ntp-root {
+  position: relative;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ntp-backdrop {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(122, 77, 255, 0.12) 0%, transparent 55%),
+    linear-gradient(180deg, rgba(14, 17, 22, 0.12) 0%, rgba(14, 17, 22, 0.78) 100%),
+    url('/wallpapers/background.png') center / cover no-repeat;
+}
+
+.ntp-content {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: clamp(20px, 3vh, 40px) clamp(16px, 4vw, 48px) clamp(24px, 4vh, 48px);
+  gap: clamp(20px, 3vh, 36px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+}
+
+.ntp-hero {
+  width: min(100%, clamp(640px, 72vw, 980px));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(16px, 2.5vh, 28px);
+  flex-shrink: 0;
+}
+
+.ntp-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.ntp-logo {
+  filter: drop-shadow(0 0 28px rgba(122, 77, 255, 0.45));
+  width: clamp(180px, 22vw, 300px);
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.ntp-search {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: clamp(520px, 68vw, 980px);
+  padding: 0 clamp(14px, 2vw, 20px);
+  height: clamp(52px, 5.5vh, 60px);
+  border-radius: 999px;
+  background: rgba(18, 22, 28, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(16px);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transition:
+    border-color var(--motion),
+    box-shadow var(--motion),
+    transform var(--motion);
+}
+
+.ntp-search:focus-within {
+  border-color: rgba(122, 77, 255, 0.5);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(155, 108, 255, 0.28),
+    0 0 32px rgba(122, 77, 255, 0.15);
+  transform: translateY(-1px);
+}
+
+.ntp-search-icon {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.ntp-search-input {
+  flex: 1;
+  min-width: 0;
+  margin-left: 12px;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--color-text-primary);
+  font-size: clamp(0.9375rem, 1.1vw, 1.0625rem);
+}
+
+.ntp-search-input::placeholder {
+  color: rgba(255, 255, 255, 0.45);
+  font-size: clamp(0.9375rem, 1.1vw, 1.0625rem);
+}
+
+/* Shared section chrome */
+.ntp-section {
+  width: min(100%, clamp(680px, 78vw, 1100px));
+  flex-shrink: 0;
+}
+
+.ntp-section-title {
+  margin: 0;
+  font-size: clamp(0.9375rem, 1.05vw, 1.0625rem);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.ntp-section-title-compact {
+  margin-bottom: clamp(10px, 1.5vh, 16px);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.ntp-section-subtitle {
+  margin: 4px 0 0;
+  font-size: clamp(0.8125rem, 0.95vw, 0.875rem);
+  color: rgba(255, 255, 255, 0.48);
+  line-height: 1.35;
+}
+
+.ntp-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.ntp-section-heading {
+  min-width: 0;
+}
+
+.ntp-section-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(122, 77, 255, 0.35);
+  background: rgba(122, 77, 255, 0.12);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background var(--motion),
+    border-color var(--motion),
+    box-shadow var(--motion);
+}
+
+.ntp-section-action:hover {
+  background: rgba(122, 77, 255, 0.22);
+  border-color: rgba(122, 77, 255, 0.55);
+  box-shadow: 0 0 20px rgba(122, 77, 255, 0.2);
+}
+
+/* Quick links */
+.ntp-shortcuts {
+  width: min(100%, clamp(680px, 78vw, 1100px));
+}
+
+.ntp-shortcuts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(clamp(88px, 9vw, 108px), 1fr));
+  gap: clamp(10px, 1.5vw, 16px);
+}
+
+.ntp-shortcut {
+  position: relative;
+  border-radius: 16px;
+  border: 1px solid transparent;
+  background: transparent;
+  transition:
+    transform 200ms ease,
+    border-color var(--motion),
+    background var(--motion),
+    box-shadow var(--motion);
+}
+
+.ntp-shortcut:hover {
+  transform: translateY(-3px) scale(1.02);
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(122, 77, 255, 0.2);
+  box-shadow: 0 8px 28px rgba(122, 77, 255, 0.12);
+}
+
+.ntp-shortcut-dragging {
+  opacity: 0.7;
+  transform: scale(0.98);
+}
+
+.ntp-shortcut-hit {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(8px, 1vh, 10px);
+  align-items: center;
+  padding: clamp(10px, 1.2vh, 14px) 8px;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  text-align: center;
+}
+
+.ntp-shortcut-icon {
+  width: clamp(52px, 5.5vw, 64px);
+  height: clamp(52px, 5.5vw, 64px);
+  border-radius: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(18, 22, 28, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transition:
+    box-shadow var(--motion),
+    border-color var(--motion);
+}
+
+.ntp-shortcut:hover .ntp-shortcut-icon {
+  border-color: rgba(122, 77, 255, 0.35);
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.4),
+    0 0 24px rgba(122, 77, 255, 0.18);
+}
+
+.ntp-shortcut-icon img {
+  border-radius: 8px;
+}
+
+.ntp-shortcut-initials {
+  font-size: clamp(0.8125rem, 1vw, 0.9375rem);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.ntp-shortcut-label {
+  font-size: clamp(0.75rem, 0.9vw, 0.8125rem);
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.78);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.ntp-shortcut-actions {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: inline-flex;
+  gap: 4px;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity var(--motion), transform var(--motion);
+}
+
+.ntp-shortcut:hover .ntp-shortcut-actions {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.ntp-shortcut-action {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(15, 17, 22, 0.85);
+  color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+}
+
+.ntp-shortcut-action:hover {
+  background: rgba(15, 17, 22, 0.95);
+}
+
+.ntp-shortcut-action-danger {
+  border-color: rgba(255, 92, 92, 0.22);
+}
+
+.ntp-shortcut-add {
+  cursor: pointer;
+}
+
+.ntp-shortcut-add .ntp-shortcut-icon {
+  background: rgba(255, 255, 255, 0.04);
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: none;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.ntp-shortcut-add:hover .ntp-shortcut-icon {
+  background: rgba(122, 77, 255, 0.1);
+  border-color: rgba(122, 77, 255, 0.35);
+  color: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 20px rgba(122, 77, 255, 0.15);
+}
+
+.ntp-shortcuts-editor {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(15, 17, 22, 0.82);
+  backdrop-filter: blur(12px);
+  animation: alphaFadeIn 180ms ease-out;
+}
+
+.ntp-shortcuts-editor-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.ntp-shortcuts-editor label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.ntp-shortcuts-editor input {
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.92);
+  outline: none;
+}
+
+.ntp-shortcuts-editor input:focus {
+  border-color: rgba(122, 77, 255, 0.45);
+  box-shadow: 0 0 0 1px rgba(155, 108, 255, 0.2);
+}
+
+.ntp-shortcuts-editor-actions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.ntp-shortcuts-editor-btn {
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.ntp-shortcuts-editor-btn.primary {
+  border-color: rgba(122, 77, 255, 0.55);
+  background: rgba(122, 77, 255, 0.18);
+}
+
+.ntp-shortcuts-editor-btn.primary:hover {
+  background: rgba(122, 77, 255, 0.26);
+}
+
+/* Saved sets */
+.ntp-saved-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(clamp(220px, 24vw, 300px), 1fr));
+  gap: clamp(12px, 1.8vw, 18px);
+  margin-top: clamp(12px, 1.5vh, 16px);
+}
+
+.ntp-saved-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: clamp(140px, 16vh, 172px);
+  padding: clamp(16px, 2vw, 20px);
+  border-radius: 18px;
+  background: rgba(18, 22, 28, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  transition:
+    transform var(--motion),
+    border-color var(--motion),
+    box-shadow var(--motion);
+}
+
+.ntp-saved-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(122, 77, 255, 0.25);
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.3),
+    0 0 24px rgba(122, 77, 255, 0.08);
+}
+
+.ntp-saved-card-accent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+}
+
+.ntp-saved-card-body {
+  flex: 1;
+  min-height: 0;
+  padding-top: 6px;
+}
+
+.ntp-saved-card-title {
+  margin: 0;
+  font-size: clamp(0.9375rem, 1.05vw, 1.0625rem);
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.94);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ntp-saved-card-meta {
+  margin: 6px 0 0;
+  font-size: 0.8125rem;
+  color: rgba(255, 255, 255, 0.48);
+}
+
+.ntp-saved-card-btn {
+  align-self: flex-start;
+  margin-top: auto;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(122, 77, 255, 0.85);
+  color: #fff;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--motion), box-shadow var(--motion);
+}
+
+.ntp-saved-card-btn:hover {
+  background: rgba(122, 77, 255, 1);
+  box-shadow: 0 0 20px rgba(122, 77, 255, 0.35);
+}
+
+/* Favorites (compact footer) */
+.ntp-favorites {
+  opacity: 0.92;
+}
+
+.ntp-favorites-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(clamp(120px, 14vw, 160px), 1fr));
+  gap: 10px;
+}
+
+.ntp-favorite {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(18, 22, 28, 0.55);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: background var(--motion), border-color var(--motion);
+}
+
+.ntp-favorite:hover {
+  background: rgba(18, 22, 28, 0.8);
+  border-color: rgba(122, 77, 255, 0.2);
+}
+
+.ntp-favorite-favicon {
+  border-radius: 5px;
+  flex-shrink: 0;
+}
+
+.ntp-favorite-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .ntp-section-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ntp-section-action {
+    align-self: flex-start;
+  }
+
+  .ntp-shortcuts-grid {
+    grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  }
+}
+
+@media (max-height: 780px) {
+  .ntp-content {
+    gap: 16px;
+    padding-top: 16px;
+    padding-bottom: 20px;
+  }
+
+  .ntp-logo {
+    width: clamp(160px, 20vw, 200px);
+  }
+
+  .ntp-search {
+    height: 48px;
+  }
+
+  .ntp-saved-card {
+    min-height: 130px;
+  }
+}
+</style>
+</head>
+<body>
+<div class="ntp-root" style="height:100vh">
+  <div class="ntp-backdrop" aria-hidden></div>
+  <main class="ntp-content">
+    <header class="ntp-hero">
+      <div class="ntp-brand">
+        <img src="../resources/public/branding/logo-ntp.png" alt="" class="ntp-logo" width="300" height="104" onerror="this.style.display='none'" />
+        <div style="font-size:2rem;font-weight:700;letter-spacing:-0.03em;background:linear-gradient(135deg,#9b6cff,#7a4dff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">Alpha</div>
+      </div>
+      <form class="ntp-search"><span class="ntp-search-icon">⌕</span><input class="ntp-search-input" placeholder="Поиск или адрес сайта" /></form>
+    </header>
+    <section class="ntp-section ntp-shortcuts">
+      <h2 class="ntp-section-title ntp-section-title-compact">Быстрые ссылки</h2>
+      <div class="ntp-shortcuts-grid">
+        <div class="ntp-shortcut"><button class="ntp-shortcut-hit"><span class="ntp-shortcut-icon"><span class="ntp-shortcut-initials">+</span></span><span class="ntp-shortcut-label">Добавить сайт</span></button></div>
+        <div class="ntp-shortcut"><button class="ntp-shortcut-hit"><span class="ntp-shortcut-icon"><span class="ntp-shortcut-initials">G</span></span><span class="ntp-shortcut-label">Google</span></button></div>
+        <div class="ntp-shortcut"><button class="ntp-shortcut-hit"><span class="ntp-shortcut-icon"><span class="ntp-shortcut-initials">YT</span></span><span class="ntp-shortcut-label">YouTube</span></button></div>
+        <div class="ntp-shortcut"><button class="ntp-shortcut-hit"><span class="ntp-shortcut-icon"><span class="ntp-shortcut-initials">GH</span></span><span class="ntp-shortcut-label">GitHub</span></button></div>
+        <div class="ntp-shortcut"><button class="ntp-shortcut-hit"><span class="ntp-shortcut-icon"><span class="ntp-shortcut-initials">TG</span></span><span class="ntp-shortcut-label">Telegram</span></button></div>
+        <div class="ntp-shortcut"><button class="ntp-shortcut-hit"><span class="ntp-shortcut-icon"><span class="ntp-shortcut-initials">R</span></span><span class="ntp-shortcut-label">Reddit</span></button></div>
+      </div>
+    </section>
+    <section class="ntp-section ntp-groups">
+      <div class="ntp-section-header">
+        <div class="ntp-section-heading">
+          <h2 class="ntp-section-title">Группы вкладок</h2>
+          <p class="ntp-section-subtitle">Группируйте вкладки для разных задач.</p>
+        </div>
+        <button type="button" class="ntp-section-action">+ Создать</button>
+      </div>
+    </section>
+    <section class="ntp-section ntp-saved-sets">
+      <h2 class="ntp-section-title">Сохранённые наборы</h2>
+      <div class="ntp-saved-grid">
+        <article class="ntp-saved-card"><div class="ntp-saved-card-accent" style="background:#7a4dff"></div><div class="ntp-saved-card-body"><h3 class="ntp-saved-card-title">Работа</h3><p class="ntp-saved-card-meta">2 сайта</p></div><button class="ntp-saved-card-btn">Открыть</button></article>
+        <article class="ntp-saved-card"><div class="ntp-saved-card-accent" style="background:#22c55e"></div><div class="ntp-saved-card-body"><h3 class="ntp-saved-card-title">Личное</h3><p class="ntp-saved-card-meta">5 сайтов</p></div><button class="ntp-saved-card-btn">Открыть</button></article>
+        <article class="ntp-saved-card"><div class="ntp-saved-card-accent" style="background:#f59e0b"></div><div class="ntp-saved-card-body"><h3 class="ntp-saved-card-title">Учёба</h3><p class="ntp-saved-card-meta">3 сайта</p></div><button class="ntp-saved-card-btn">Открыть</button></article>
+      </div>
+    </section>
+  </main>
+</div>
+</body>
+</html>

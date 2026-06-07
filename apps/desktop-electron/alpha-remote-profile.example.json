@@ -1,0 +1,10 @@
+{
+  "_comment": "Template for the P0-D remote VLESS+Reality profile. Copy this file to 'alpha-remote-profile.local.json' (git-ignored) and fill in real values, OR set ALPHA_REMOTE_* env vars. Never commit real credentials. The Reality PRIVATE key is server-side only and must NOT appear here.",
+  "server": "0.0.0.0",
+  "port": 2087,
+  "uuid": "00000000-0000-0000-0000-000000000000",
+  "publicKey": "REALITY_PUBLIC_KEY_BASE64URL",
+  "shortId": "0000000000000000",
+  "serverName": "www.microsoft.com",
+  "flow": "xtls-rprx-vision"
+}

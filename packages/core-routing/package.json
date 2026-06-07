@@ -1,0 +1,17 @@
+{
+  "name": "@alpha/core-routing",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": { "@alpha/shared-types": "workspace:*" },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8"
+  }
+}

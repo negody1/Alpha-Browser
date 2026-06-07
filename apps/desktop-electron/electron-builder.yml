@@ -1,0 +1,45 @@
+appId: com.alpha.browser
+productName: Alpha Browser
+directories:
+  buildResources: resources
+  output: release
+asar: true
+files:
+  - out/**/*
+  - resources/**/*
+  # sing-box is delivered as an external resource (see extraResources), never bundled into the asar.
+  - '!resources/bin/**/*'
+extraResources:
+  # Copy the proxy binary to <resourcesPath>/bin so it stays outside the asar
+  # and remains executable. ProxyClientService.resolveSingBoxPath() reads it
+  # from process.resourcesPath/bin in packaged builds.
+  - from: resources/bin
+    to: bin
+    filter:
+      - 'sing-box'
+      - 'sing-box.exe'
+  # Ship the bundled adblock filter list to <resourcesPath>/adblock so it loads
+  # in packaged builds. The file is synced into resources/adblock by
+  # scripts/sync-adblock-assets.mjs (run in dist:win) from the canonical
+  # packages/core-adblock/assets/default-ads.txt. It is ALSO included in the
+  # asar via `files: resources/**` above, giving two independent packaged
+  # copies. AdblockService.reloadRules() reads from process.resourcesPath/adblock
+  # first, then the asar copy, so a release never starts with empty filters.
+  - from: resources/adblock
+    to: adblock
+    filter:
+      - 'default-ads.txt'
+win:
+  target:
+    - nsis
+  # electron-builder generates the multi-size .ico from this PNG (>=256px).
+  icon: resources/icon.png
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  installerIcon: resources/icon.png
+  uninstallerIcon: resources/icon.png
+  shortcutName: Alpha Browser
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
