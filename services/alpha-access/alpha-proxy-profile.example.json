@@ -1,0 +1,10 @@
+{
+  "_comment": "Template for the SERVER-side proxy profile that Alpha Access returns to approved+activated devices. Copy to 'alpha-proxy-profile.local.json' (gitignored) and fill REAL VLESS/Reality values on the server. Same logical fields the client already expects. NEVER commit real values. The Reality PRIVATE key is server-side only and must NOT appear here.",
+  "server": "0.0.0.0",
+  "port": 2087,
+  "uuid": "00000000-0000-0000-0000-000000000000",
+  "publicKey": "REALITY_PUBLIC_KEY_BASE64URL",
+  "shortId": "0000000000000000",
+  "serverName": "www.microsoft.com",
+  "flow": "xtls-rprx-vision"
+}

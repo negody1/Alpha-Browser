@@ -40,6 +40,16 @@ export function releasesPageUrl(): string {
 }
 
 /**
+ * Base URL of the Alpha Access service (registration + activation + profile
+ * delivery). Defaults to the public host; override with `ALPHA_ACCESS_URL`
+ * (e.g. `http://127.0.0.1:8090`) for a local dry-run against the staged backend.
+ */
+export function alphaAccessBaseUrl(): string {
+  const env = (process.env.ALPHA_ACCESS_URL ?? '').trim();
+  return (env || 'https://3d.negody.ru').replace(/\/+$/, '');
+}
+
+/**
  * PRE_RELEASE_TODO — values to replace once the GitHub repo is created:
  *   - app-config.ts  → DEFAULT_UPDATE_REPO            (this file)
  *   - package.json   → "repository.url", "homepage"

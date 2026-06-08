@@ -48,9 +48,19 @@ nsis:
   uninstallerIcon: resources/icon.ico
   # Header icon (top-right of the installer) — also a true .ico.
   installerHeaderIcon: resources/icon.ico
+  # Branded visuals (Alpha logo on the dark/purple browser wallpaper):
+  #  - sidebar  164x314 BMP -> Welcome & Finish pages (big left image)
+  #  - header   150x57  BMP -> interior pages (top-right strip)
+  installerSidebar: resources/installerSidebar.bmp
+  uninstallerSidebar: resources/installerSidebar.bmp
+  installerHeader: resources/installerHeader.bmp
   shortcutName: Alpha Browser
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  # Ensure the app is registered in the Windows "Installed apps" list.
+  # menuCategory MUST stay false: any value nests BOTH the Start Menu submenu
+  # AND the install directory (Program Files\<category>\<productName>), which is
+  # what produced "Program Files\Alpha Browser\Alpha Browser". Modern apps
+  # (Brave/Arc/Cursor) put the shortcut flat in the Start Menu — matches our look
+  # and keeps the install path "Program Files\Alpha Browser".
   menuCategory: false
   runAfterFinish: true

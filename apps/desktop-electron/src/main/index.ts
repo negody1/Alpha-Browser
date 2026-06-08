@@ -21,6 +21,8 @@ import { registerScreenShareIpc } from './ipc/register-screenshare';
 import { registerPrivacyIpc } from './ipc/register-privacy';
 import { registerUpdatesIpc, runStartupUpdateCheck } from './ipc/register-updates';
 import { registerProxyIpc } from './ipc/register-proxy';
+import { registerActivationIpc } from './ipc/register-activation';
+import { ActivationService } from './activation/ActivationService';
 import { UpdateCheckService } from './updates/UpdateCheckService';
 import { OmniboxService } from './omnibox/OmniboxService';
 import { PermissionService } from './permissions/PermissionService';
@@ -52,6 +54,7 @@ let mainWindow: BrowserWindow | null = null;
 let tabManager: TabManager | null = null;
 let sessionRegistry: SessionRegistry | null = null;
 let updateCheckService: UpdateCheckService | null = null;
+let activationService: ActivationService | null = null;
 let savedGroupsStore: SavedGroupsStore | null = null;
 let sessionStore: SessionStore | null = null;
 let routesStore: RoutesStore | null = null;
@@ -464,6 +467,9 @@ app.whenReady().then(() => {
   registerUpdatesIpc(() => updateCheckService);
   // PHASE 4: proxy diagnostics (end-to-end egress check).
   registerProxyIpc(() => proxyClient);
+  // Alpha Proxy onboarding (email + activation code → profile delivery).
+  activationService = new ActivationService(() => proxyClient);
+  registerActivationIpc(() => activationService);
 
   mainWindow = createWindow();
 

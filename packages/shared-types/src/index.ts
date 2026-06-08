@@ -109,6 +109,25 @@ export interface ProxyEgressDiagnostics {
   error: string | null;
 }
 
+/** Alpha Proxy onboarding (email + activation code) — user-facing states. */
+export type ActivationStatus =
+  | 'idle'
+  | 'pending'
+  | 'enter_code'
+  | 'connected'
+  | 'revoked'
+  | 'denied'
+  | 'error';
+
+export interface ActivationState {
+  email: string | null;
+  status: ActivationStatus;
+  /** A proxy profile is present locally (activated). No secrets exposed. */
+  hasProfile: boolean;
+  error: string | null;
+  lastCheckedAt: string | null;
+}
+
 /** PHASE 4: sanitized proxy diagnostics surfaced to the renderer (no secrets). */
 export interface ProxyDiagnosticsSnapshot {
   status: ProxyConnectionStatus;

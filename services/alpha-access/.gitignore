@@ -1,0 +1,5 @@
+# Real server-side proxy profile (VLESS/Reality secrets) — NEVER commit.
+alpha-proxy-profile.local.json
+# Runtime data store (emails, hashed device ids / codes).
+data/
+*.tmp

@@ -6,6 +6,7 @@ import {
   type ProxyDiagnosticsSnapshot,
 } from '@alpha/shared-types';
 import { useBrowserStore } from '../../store/tabsStore';
+import { AlphaProxyOnboarding } from './AlphaProxyOnboarding';
 
 const ROUTES: RouteMode[] = ['AUTO', 'DIRECT', 'PROXY'];
 
@@ -58,12 +59,11 @@ export function ProxySection() {
               : 'Ошибка'
             : 'Отключено';
 
+  // User-facing label (technical runtime names stay in Advanced diagnostics).
   const runtimeLabel =
-    proxyState.runtimeMode === 'SING_BOX_LOCAL_TEST'
-      ? 'sing-box локальный'
-      : proxyState.runtimeMode === 'SING_BOX_REMOTE'
-        ? 'sing-box удалённый'
-        : 'Тестовый локальный';
+    proxyState.runtimeMode === 'SING_BOX_REMOTE'
+      ? 'Alpha Proxy · Нидерланды'
+      : 'Прямое соединение';
 
   async function saveDefaults(event: FormEvent) {
     event.preventDefault();
@@ -84,6 +84,12 @@ export function ProxySection() {
 
   return (
     <>
+      {/* User-facing onboarding (email → activation code → connected). */}
+      <AlphaProxyOnboarding />
+
+      <details className="settings-advanced">
+        <summary>Расширенная диагностика</summary>
+
       <div className="settings-card">
         <div className="settings-row">
           <div className="settings-row-text">
@@ -97,11 +103,9 @@ export function ProxySection() {
 
         {missingProfile && (
           <div className="settings-notice settings-notice-warn">
-            <strong>PROXY недоступен: профиль не настроен.</strong>
+            <strong>Alpha Proxy не подключён.</strong>
             <span className="settings-muted">
-              Браузер работает в режиме DIRECT (прямое соединение). Чтобы включить PROXY,
-              задайте удалённый профиль через переменные окружения <code>ALPHA_REMOTE_*</code> или
-              файл <code>alpha-remote-profile.local.json</code>. Секреты не хранятся в приложении.
+              Подключение настраивается в разделе выше (email и код активации).
             </span>
           </div>
         )}
@@ -242,6 +246,7 @@ export function ProxySection() {
           </ul>
         )}
       </div>
+      </details>
     </>
   );
 }

@@ -16,6 +16,7 @@ import type {
   PermissionSiteEntry,
   UpdateNotice,
   ProxyDiagnosticsSnapshot,
+  ActivationState,
 } from '@alpha/shared-types';
 
 export interface AlphaApi {
@@ -184,6 +185,12 @@ export interface AlphaApi {
   proxy: {
     diagnostics: () => Promise<ProxyDiagnosticsSnapshot | null>;
     checkEgress: () => Promise<ProxyDiagnosticsSnapshot | null>;
+  };
+  activation: {
+    getState: () => Promise<ActivationState | null>;
+    register: (email: string) => Promise<ActivationState | null>;
+    activate: (email: string, code: string) => Promise<ActivationState | null>;
+    checkStatus: () => Promise<ActivationState | null>;
   };
   passwords: {
     isAvailable: () => Promise<boolean>;
@@ -476,6 +483,13 @@ const alphaApi: AlphaApi = {
       ipcRenderer.invoke('proxy:diagnostics') as Promise<ProxyDiagnosticsSnapshot | null>,
     checkEgress: () =>
       ipcRenderer.invoke('proxy:checkEgress') as Promise<ProxyDiagnosticsSnapshot | null>,
+  },
+  activation: {
+    getState: () => ipcRenderer.invoke('activation:getState') as Promise<ActivationState | null>,
+    register: (email) => ipcRenderer.invoke('activation:register', { email }) as Promise<ActivationState | null>,
+    activate: (email, code) =>
+      ipcRenderer.invoke('activation:activate', { email, code }) as Promise<ActivationState | null>,
+    checkStatus: () => ipcRenderer.invoke('activation:checkStatus') as Promise<ActivationState | null>,
   },
   passwords: {
     isAvailable: () => ipcRenderer.invoke('passwords:isAvailable') as Promise<boolean>,

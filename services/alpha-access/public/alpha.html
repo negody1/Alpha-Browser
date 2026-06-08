@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Alpha Proxy — доступ</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background:#0b0d12; color:#e6e8ee; font:15px/1.5 system-ui,Segoe UI,Roboto,sans-serif; }
+  .card { width:min(440px,calc(100vw - 32px)); background:#141821; border:1px solid rgba(255,255,255,.1);
+    border-radius:16px; padding:28px; box-shadow:0 20px 60px rgba(0,0,0,.5); }
+  h1 { margin:0 0 6px; font-size:20px; }
+  p { color:rgba(255,255,255,.65); margin:0 0 18px; }
+  input { width:100%; box-sizing:border-box; padding:11px 14px; border-radius:10px;
+    border:1px solid rgba(255,255,255,.14); background:#0d1019; color:#fff; font-size:15px; }
+  button { margin-top:14px; width:100%; padding:11px; border:none; border-radius:10px; cursor:pointer;
+    background:linear-gradient(135deg,#7a4dff,#9b6cff); color:#fff; font-weight:600; font-size:15px; }
+  .msg { margin-top:14px; font-size:14px; color:#a9f0c0; min-height:20px; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Доступ к Alpha Proxy</h1>
+    <p>Введите email, чтобы отправить заявку на доступ. После одобрения администратор выдаст код активации для Alpha Browser.</p>
+    <input id="email" type="email" placeholder="you@example.com" autocomplete="email" />
+    <button id="submit">Отправить заявку</button>
+    <div class="msg" id="msg"></div>
+  </div>
+<script>
+  const $ = (id) => document.getElementById(id);
+  $('submit').onclick = async () => {
+    const email = $('email').value.trim();
+    $('msg').textContent = '';
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { $('msg').textContent = 'Введите корректный email.'; return; }
+    try {
+      const r = await fetch('/api/alpha/register', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ email }) });
+      const j = await r.json();
+      $('msg').textContent = j.status === 'submitted'
+        ? 'Заявка отправлена. Доступ появится после подтверждения администратором.'
+        : 'Не удалось отправить заявку. Попробуйте позже.';
+    } catch { $('msg').textContent = 'Ошибка сети.'; }
+  };
+</script>
+</body>
+</html>

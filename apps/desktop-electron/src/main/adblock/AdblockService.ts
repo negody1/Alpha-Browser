@@ -13,6 +13,7 @@ import { join } from 'node:path';
 import { app } from 'electron';
 import { AdblockStore } from '../storage/AdblockStore';
 import type { TabManager } from '../tabs/TabManager';
+import { adblockAdd, timingsEnabled } from '../nav-timings';
 
 function mapResourceType(input: string): AdblockResourceType {
   // Electron: mainFrame, subFrame, stylesheet, script, image, font, object, xhr, ping, cspReport, media, websocket, other
@@ -139,11 +140,15 @@ export class AdblockService {
         return;
       }
 
+      const matchStart = timingsEnabled() ? performance.now() : 0;
       const decision = this.engine.match({
         url: details.url,
         hostname: host,
         resourceType,
       });
+      if (matchStart && typeof details.webContentsId === 'number') {
+        adblockAdd(details.webContentsId, performance.now() - matchStart);
+      }
 
       if (!decision.block) {
         callback({});

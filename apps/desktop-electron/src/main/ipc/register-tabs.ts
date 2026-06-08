@@ -2,6 +2,7 @@ import { app, ipcMain } from 'electron';
 import type { z } from 'zod';
 import type { TabManager } from '../tabs/TabManager';
 import { resolveNavigationUrl } from '../navigation';
+import { navMark, navLog } from '../nav-timings';
 import {
   createTabPayload,
   navigateTabPayload,
@@ -60,10 +61,13 @@ export function registerTabsIpc(getManager: () => TabManager | null): void {
     if (!data || !manager) {
       return manager?.getState();
     }
+    navMark(data.tabId);
+    navLog(data.tabId, 'ipc:navigate-received', { input: data.input });
     const resolved = resolveNavigationUrl(data.input);
     if (!resolved) {
       return manager.getState();
     }
+    navLog(data.tabId, 'ipc:url-resolved', { resolved });
     return manager.navigateTab(data.tabId, data.input, resolved);
   });
 

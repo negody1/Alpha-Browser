@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Alpha Access — admin</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin:0; background:#0b0d12; color:#e6e8ee; font:14px/1.5 system-ui,Segoe UI,Roboto,sans-serif; padding:24px; }
+  h1 { font-size:18px; margin:0 0 12px; }
+  .bar { display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; align-items:center; }
+  input { padding:8px 10px; border-radius:8px; border:1px solid rgba(255,255,255,.14); background:#0d1019; color:#fff; }
+  button { padding:7px 12px; border:none; border-radius:8px; cursor:pointer; background:#26304a; color:#fff; }
+  button.p { background:linear-gradient(135deg,#7a4dff,#9b6cff); }
+  button.d { background:#5a2330; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th,td { text-align:left; padding:8px 10px; border-bottom:1px solid rgba(255,255,255,.08); }
+  th { color:rgba(255,255,255,.5); font-weight:600; }
+  .s { padding:2px 8px; border-radius:999px; font-size:12px; }
+  .s.pending{background:#4a3a14;color:#ffcf8b}.s.approved{background:#13402a;color:#8be0a8}
+  .s.denied,.s.revoked{background:#4a1722;color:#ff9aa9}
+  .muted { color:rgba(255,255,255,.45); }
+  .code { font-family:monospace; background:#0d1019; padding:2px 6px; border-radius:6px; }
+</style>
+</head>
+<body>
+  <h1>Alpha Access — администрирование</h1>
+  <div class="bar">
+    <input id="token" type="password" placeholder="ADMIN_TOKEN" style="width:280px" />
+    <button class="p" onclick="load()">Войти / обновить</button>
+    <input id="filter" placeholder="фильтр по email" oninput="render()" style="width:220px" />
+    <span class="muted" id="status"></span>
+  </div>
+  <table>
+    <thead><tr><th>email</th><th>статус</th><th>создано</th><th>одобрено</th><th>код</th><th>устройства</th><th>действия</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+<script>
+  const $ = (id) => document.getElementById(id);
+  let DATA = { requests: [], devices: [] };
+  const tok = () => $('token').value.trim();
+  async function api(path, method='GET', body) {
+    const r = await fetch(path, { method, headers:{'content-type':'application/json','authorization':'Bearer '+tok()}, body: body?JSON.stringify(body):undefined });
+    if (r.status === 401) { $('status').textContent='Неверный токен'; return null; }
+    return r.json();
+  }
+  async function load() {
+    const j = await api('/api/alpha/admin/list');
+    if (!j) return;
+    DATA = j; $('status').textContent = DATA.requests.length + ' заявок'; render();
+  }
+  function render() {
+    const f = $('filter').value.trim().toLowerCase();
+    const byEmail = {};
+    for (const d of DATA.devices) (byEmail[d.email_normalized] = byEmail[d.email_normalized] || []).push(d);
+    $('rows').innerHTML = DATA.requests.filter(r => !f || r.email_normalized.includes(f)).map(r => {
+      const devs = (byEmail[r.email_normalized]||[]);
+      const active = devs.filter(d=>d.status==='active').length;
+      return `<tr>
+        <td>${r.email_normalized}</td>
+        <td><span class="s ${r.status}">${r.status}</span></td>
+        <td class="muted">${(r.created_at||'').slice(0,16).replace('T',' ')}</td>
+        <td class="muted">${(r.approved_at||'').slice(0,16).replace('T',' ')}</td>
+        <td>${r.has_code ? (r.code_used?'<span class="muted">использован</span>':'<span class="code">выдан</span>') : '—'}</td>
+        <td>${active}/${devs.length}</td>
+        <td>
+          <button class="p" onclick="approve('${r.email_normalized}')">Одобрить + код</button>
+          <button class="d" onclick="act('deny','${r.email_normalized}')">Отклонить</button>
+          <button class="d" onclick="act('revoke','${r.email_normalized}')">Отозвать</button>
+        </td></tr>`;
+    }).join('');
+  }
+  async function approve(email) {
+    const j = await api('/api/alpha/admin/approve','POST',{ email });
+    if (j && j.activation_code) alert('Код активации для ' + email + ':\n\n' + j.activation_code + '\n\nПередайте его пользователю. Код одноразовый.');
+    load();
+  }
+  async function act(kind, email) { await api('/api/alpha/admin/'+kind,'POST',{ email }); load(); }
+</script>
+</body>
+</html>

@@ -13,6 +13,7 @@ import type {
 } from '@alpha/shared-types';
 import { Socks5Server } from './Socks5Server';
 import { SingBoxConfigBuilder } from './SingBoxConfigBuilder';
+import { timingsEnabled } from '../nav-timings';
 import { describeRemoteProfile, getRemoteProfile, type RemoteProfile } from './remote-profile';
 
 type ProxyClientEvents = {
@@ -201,7 +202,14 @@ export class ProxyClientService extends EventEmitter {
       // and answers a SOCKS5 greeting. This replaces "assume started" with an
       // active readiness probe and distinguishes an early process crash from a
       // port that never came up.
+      const swStart = timingsEnabled() ? performance.now() : 0;
+      if (swStart) console.log(`[alpha][timing] proxy:readiness-wait-start mode=${this.runtimeMode} port=${port}`);
       const ready = await this.waitForSocksReady(port, 7000);
+      if (swStart) {
+        console.log(
+          `[alpha][timing] proxy:readiness-wait-end wait=${(performance.now() - swStart).toFixed(0)}ms ready=${ready}`,
+        );
+      }
       if (!ready) {
         if (!this.isChildAlive()) {
           this.setStatus('ERROR', 'Компонент прокси завершился при запуске', 'PROCESS_EXITED');

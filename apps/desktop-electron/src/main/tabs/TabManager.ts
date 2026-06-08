@@ -40,6 +40,7 @@ import {
   releaseProxyFingerprint,
   wireDetachedDevTools,
 } from './proxy-fingerprint';
+import { navLog, adblockTakeForWc } from '../nav-timings';
 import type { SessionGroupEntry, TabEntry } from './types';
 
 const WEB_PREFS = {
@@ -299,6 +300,16 @@ export class TabManager {
     if (!entry || !resolvedUrl || !isAllowedNavigationUrl(resolvedUrl)) {
       return this.getState();
     }
+
+    navLog(entry.id, 'tabManager:navigateTab', {
+      fromKind: entry.kind,
+      partition: entry.partition,
+      routeClass: entry.routeClass,
+      // Whether the shared proxy transport was already ready before this nav.
+      proxyStatus: this.proxySnapshot.status,
+      proxyReady: !!this.proxySnapshot.localSocks,
+      hasView: !!entry.view,
+    });
 
     entry.loadFailed = false;
     // Mark this tab so the resulting main-frame navigation is counted as a
@@ -1144,6 +1155,7 @@ export class TabManager {
   }
 
   private promoteToWeb(entry: TabEntry, url: string): void {
+    navLog(entry.id, 'tabManager:promoteToWeb');
     entry.kind = 'web';
     applyUrl(entry, url);
     entry.title = url;
@@ -1171,8 +1183,10 @@ export class TabManager {
         ...(sess ? { session: sess } : {}),
       },
     });
+    navLog(tabId, 'tabManager:webContents-created', { partition, wcId: view.webContents.id });
     this.wireWebContents(view.webContents, tabId);
     applyProxyFingerprint(view.webContents, partition);
+    navLog(tabId, 'tabManager:fingerprint-applied', { partition });
     // P3-B Tab Audio: a fresh webContents starts unmuted and silent. Re-apply the
     // tab's mute intent so it survives DIRECT↔PROXY migration and tab restore;
     // audible is reset and will be re-emitted by 'audio-state-changed'.
@@ -1192,6 +1206,7 @@ export class TabManager {
       return;
     }
     this.layoutViews();
+    navLog(entry.id, 'tabManager:loadURL-called', { url: entry.url, partition: entry.partition });
     void entry.view.webContents.loadURL(entry.url).catch(() => {
       entry.loadFailed = true;
       entry.isLoading = false;
@@ -1204,6 +1219,7 @@ export class TabManager {
     wireDetachedDevTools(webContents, () => this.tabs.get(tabId)?.partition === 'PROXY');
 
     webContents.on('did-start-loading', () => {
+      navLog(tabId, 'event:did-start-loading');
       const entry = this.tabs.get(tabId);
       if (!entry) {
         return;
@@ -1221,6 +1237,10 @@ export class TabManager {
       this.emitState();
     });
 
+    webContents.on('dom-ready', () => {
+      navLog(tabId, 'event:dom-ready');
+    });
+
     webContents.on('did-stop-loading', () => {
       const entry = this.tabs.get(tabId);
       if (!entry) {
@@ -1235,6 +1255,7 @@ export class TabManager {
       if (!isMainFrame) {
         return;
       }
+      navLog(tabId, 'event:did-fail-load', { errorCode, url: validatedURL });
       // ERR_ABORTED (-3) is not a real failure: it fires on redirects,
       // superseded navigations and webContents.stop(). Treating it as an error
       // leaves a stale "Ошибка:" title on pages that actually load.
@@ -1279,6 +1300,7 @@ export class TabManager {
     });
 
     webContents.on('did-finish-load', () => {
+      navLog(tabId, 'event:did-finish-load', { adblock: adblockTakeForWc(webContents.id) ?? undefined });
       const entry = this.tabs.get(tabId);
       if (!entry) {
         return;

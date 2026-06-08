@@ -96,6 +96,10 @@ body {
 .ntp-search {
   display: flex;
   position: relative;
+  /* Lift the whole search (and its absolutely-positioned suggestions child)
+     above the later siblings (Quick links / Workspaces) so the dropdown never
+     renders under the quick-link icons. */
+  z-index: 50;
   align-items: center;
   width: 100%;
   max-width: clamp(560px, 64vw, 840px);
@@ -120,15 +124,18 @@ body {
   top: calc(100% + 8px);
   left: 0;
   right: 0;
-  z-index: 20;
+  z-index: 60;
   margin: 0;
   padding: 6px;
   list-style: none;
+  max-height: min(360px, 50vh);
+  overflow-y: auto;
   border-radius: 16px;
-  background: rgba(16, 19, 26, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  /* Near-opaque so quick-link icons can never bleed through the text. */
+  background: rgba(14, 17, 24, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   backdrop-filter: blur(18px);
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
 }
 
 .ntp-suggestion {
@@ -3483,3 +3490,22 @@ body {
   flex-direction: column;
   gap: 2px;
 }
+
+/* Alpha Proxy onboarding + advanced-diagnostics collapsible (Settings → Proxy). */
+.onb { display: flex; flex-direction: column; gap: 10px; }
+.onb-head { display: flex; align-items: center; gap: 8px; font-size: 1rem; }
+.onb-head.onb-ok { color: #8be0a8; }
+.onb-head.onb-bad { color: #ff9aa9; }
+.onb-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.onb-row input {
+  flex: 1; min-width: 200px; padding: 9px 12px; border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14); background: rgba(0, 0, 0, 0.3); color: #fff;
+}
+.settings-advanced { margin-top: 6px; }
+.settings-advanced > summary {
+  cursor: pointer; list-style: none; padding: 8px 2px; color: rgba(255, 255, 255, 0.55);
+  font-size: 0.875rem; user-select: none;
+}
+.settings-advanced > summary:hover { color: rgba(255, 255, 255, 0.85); }
+.settings-advanced > summary::before { content: '▸ '; }
+.settings-advanced[open] > summary::before { content: '▾ '; }
