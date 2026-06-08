@@ -21,6 +21,18 @@
 </style>
 </head>
 <body>
+  <!-- FIRST-RUN SETUP WIZARD (shown only while no admin exists) -->
+  <div id="setup" class="hide">
+    <h1>Alpha Access — первичная настройка</h1>
+    <div class="card">
+      <p class="muted" style="margin-top:0">Администратор ещё не создан. Задайте учётные данные — мастер откроется только один раз.</p>
+      <div class="row"><input id="su" placeholder="Логин администратора (мин. 3)" autocomplete="username" /></div>
+      <div class="row"><input id="sp" type="password" placeholder="Пароль (мин. 8)" autocomplete="new-password" /></div>
+      <div class="row"><input id="sc" type="password" placeholder="Повторите пароль" autocomplete="new-password" /></div>
+      <div class="row"><button class="p" onclick="setup()">Создать администратора</button><span class="err" id="serr"></span></div>
+    </div>
+  </div>
+
   <!-- LOGIN -->
   <div id="login" class="hide">
     <h1>Alpha Access — вход</h1>
@@ -60,10 +72,22 @@
     const r = await fetch(path, { method, headers:{'content-type':'application/json'}, credentials:'same-origin', body: body?JSON.stringify(body):undefined });
     return { status:r.status, json: await r.json().catch(()=>({})) };
   }
+  function show(which) { for (const id of ['setup','login','app']) $(id).classList.toggle('hide', id !== which); }
   async function boot() {
+    const st = await api('/api/alpha/admin/setup-status');
+    if (st.status === 200 && st.json.needs_setup) { show('setup'); return; }
     const me = await api('/api/alpha/admin/me');
-    if (me.status === 200) { $('who').textContent = me.json.user; $('login').classList.add('hide'); $('app').classList.remove('hide'); load(); }
-    else { $('app').classList.add('hide'); $('login').classList.remove('hide'); }
+    if (me.status === 200) { $('who').textContent = me.json.user; show('app'); load(); }
+    else show('login');
+  }
+  async function setup() {
+    $('serr').textContent='';
+    const r = await api('/api/alpha/admin/setup','POST',{ user:$('su').value, password:$('sp').value, confirm:$('sc').value });
+    if (r.status === 200) boot();
+    else $('serr').textContent = r.json.error === 'password_mismatch' ? 'Пароли не совпадают'
+      : r.json.error === 'weak_password' ? 'Пароль слишком короткий (мин. 8)'
+      : r.json.error === 'weak_user' ? 'Логин слишком короткий (мин. 3)'
+      : r.json.error === 'already_initialized' ? 'Администратор уже создан' : 'Ошибка';
   }
   async function login() {
     $('lerr').textContent='';

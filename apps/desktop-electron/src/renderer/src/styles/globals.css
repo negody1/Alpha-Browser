@@ -3496,6 +3496,8 @@ body {
 .onb-head { display: flex; align-items: center; gap: 8px; font-size: 1rem; }
 .onb-head.onb-ok { color: #8be0a8; }
 .onb-head.onb-bad { color: #ff9aa9; }
+.onb-row.onb-err { color: #ffcf8b; align-items: flex-start; }
+.onb-row.onb-err svg { flex: 0 0 auto; margin-top: 2px; color: #ffcf8b; }
 .onb-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .onb-row input {
   flex: 1; min-width: 200px; padding: 9px 12px; border-radius: 10px;

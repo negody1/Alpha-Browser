@@ -148,8 +148,10 @@ export class ActivationService {
       this.email = e;
       this.status = 'pending';
       this.saveMeta();
+    } else if (r && r.status === 'error') {
+      this.error = 'server'; // backend reachable but returned 5xx
     } else {
-      this.error = 'network';
+      this.error = 'network'; // unreachable / timeout
     }
     return this.getState();
   }
@@ -170,6 +172,12 @@ export class ActivationService {
       this.error = 'network';
       return this.getState();
     }
+    if (r.status === 'error') {
+      // 5xx from the backend — do NOT mislabel as "pending". Keep the prior
+      // status and surface a human "server temporarily unavailable" message.
+      this.error = 'server';
+      return this.getState();
+    }
     this.email = e;
     this.applyServerStatus(String(r.status), r.profile);
     return this.getState();
@@ -186,6 +194,10 @@ export class ActivationService {
     this.lastCheckedAt = new Date().toISOString();
     if (!r) {
       this.error = 'network';
+      return this.getState();
+    }
+    if (r.status === 'error') {
+      this.error = 'server';
       return this.getState();
     }
     this.applyServerStatus(String(r.status), r.profile);

@@ -216,6 +216,26 @@ function handleMe(req, res) {
   if (!user) return send(res, 401, { error: 'unauthorized' });
   return send(res, 200, { user });
 }
+// First-run setup wizard. Active ONLY while no admin exists. Once an admin is
+// created (here OR via env bootstrap), both endpoints lock out permanently.
+function handleSetupStatus(req, res) {
+  return send(res, 200, { needs_setup: !DB.admin });
+}
+async function handleSetup(req, res, ip) {
+  if (DB.admin) return send(res, 409, { error: 'already_initialized' });
+  if (rateLimited(ip, 'setup', 10)) return send(res, 429, { error: 'rate_limited' });
+  const body = await readBody(req);
+  const user = String(body?.user || '').trim();
+  const password = String(body?.password || '');
+  const confirm = String(body?.confirm || '');
+  if (!user || user.length < 3) return send(res, 400, { error: 'weak_user' });
+  if (password.length < 8) return send(res, 400, { error: 'weak_password' });
+  if (password !== confirm) return send(res, 400, { error: 'password_mismatch' });
+  setAdmin(user, password); // persists hash+salt; sets DB.admin -> wizard now locked
+  setSessionCookie(req, res, newSession(DB.admin.user)); // auto-login the new admin
+  console.log('[alpha-access] admin created via first-run setup wizard');
+  return send(res, 200, { ok: true, user: DB.admin.user });
+}
 async function handleChangeCreds(req, res) {
   const user = sessionUser(parseCookie(req, 'alpha_admin'));
   if (!user) return send(res, 401, { error: 'unauthorized' });
@@ -410,6 +430,8 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && (path === '/admin/alpha' || path === '/admin/alpha/')) return serveStatic(res, 'admin.html', 'text/html; charset=utf-8');
     if (req.method === 'POST' && path === '/api/alpha/register') return handleRegister(req, res, ip);
     if (req.method === 'POST' && path === '/api/alpha/device/activate') return handleActivate(req, res, ip);
+    if (req.method === 'GET' && path === '/api/alpha/admin/setup-status') return handleSetupStatus(req, res);
+    if (req.method === 'POST' && path === '/api/alpha/admin/setup') return handleSetup(req, res, ip);
     if (req.method === 'POST' && path === '/api/alpha/admin/login') return handleLogin(req, res, ip);
     if (req.method === 'POST' && path === '/api/alpha/admin/logout') return handleLogout(req, res);
     if (req.method === 'GET' && path === '/api/alpha/admin/me') return handleMe(req, res);

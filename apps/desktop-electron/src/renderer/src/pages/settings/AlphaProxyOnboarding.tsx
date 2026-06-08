@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { ShieldCheck, Mail, KeyRound, Loader2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ShieldCheck, Mail, KeyRound, Loader2, WifiOff } from 'lucide-react';
 import type { ActivationState } from '@alpha/shared-types';
 
 /**
@@ -12,6 +12,7 @@ export function AlphaProxyOnboarding() {
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
+  const healedRef = useRef(false);
 
   useEffect(() => {
     void window.alpha.activation.getState().then((s) => {
@@ -29,8 +30,29 @@ export function AlphaProxyOnboarding() {
     }
   }
 
+  // SCENARIO B: the local profile was deleted while we believed we were
+  // connected. Auto-heal once — an active device re-fetches its profile with no
+  // new code (server returns connected + profile on a no-code re-check). If that
+  // fails (offline / revoked) the UI falls through to the re-onboarding block.
+  useEffect(() => {
+    if (state?.status === 'connected' && state.hasProfile === false && !healedRef.current) {
+      healedRef.current = true;
+      void run(() => window.alpha.activation.checkStatus());
+    }
+  }, [state?.status, state?.hasProfile]);
+
   const status = state?.status ?? 'idle';
   const spin = busy ? <Loader2 size={16} className="spin-slow" /> : null;
+  // SCENARIO A + C: one human banner for "unreachable" (network) and "5xx" (server).
+  const conn = state?.error === 'network' || state?.error === 'server';
+  const connBanner = conn ? (
+    <div className="onb-row onb-err">
+      <WifiOff size={16} />
+      <span className="settings-muted">
+        Alpha Proxy временно недоступен. Проверьте подключение к интернету и попробуйте позже.
+      </span>
+    </div>
+  ) : null;
 
   return (
     <div className="settings-card">
@@ -45,7 +67,7 @@ export function AlphaProxyOnboarding() {
             </button>
           </div>
           {state?.error === 'invalid_email' && <span className="settings-muted">Введите корректный email.</span>}
-          {state?.error === 'network' && <span className="settings-muted">Не удалось связаться с сервером. Попробуйте позже.</span>}
+          {connBanner}
         </div>
       )}
 
@@ -62,6 +84,7 @@ export function AlphaProxyOnboarding() {
           <button className="settings-btn" disabled={busy} onClick={() => void run(() => window.alpha.activation.checkStatus())}>
             {spin} Проверить статус
           </button>
+          {connBanner}
         </div>
       )}
 
@@ -78,7 +101,7 @@ export function AlphaProxyOnboarding() {
         </div>
       )}
 
-      {status === 'connected' && (
+      {status === 'connected' && state?.hasProfile && (
         <div className="onb">
           <div className="onb-head onb-ok"><ShieldCheck size={18} /> <strong>Alpha Proxy подключён</strong></div>
           <div className="settings-row">
@@ -88,6 +111,22 @@ export function AlphaProxyOnboarding() {
           <button className="settings-btn" disabled={busy} onClick={() => void run(() => window.alpha.activation.checkStatus())}>
             {spin} Проверить соединение
           </button>
+        </div>
+      )}
+
+      {/* SCENARIO B: profile deleted locally — re-establishing, or offer re-activation. */}
+      {status === 'connected' && !state?.hasProfile && (
+        <div className="onb">
+          <div className="onb-head"><Loader2 size={18} className={busy ? 'spin-slow' : ''} /> <strong>Восстановление доступа</strong></div>
+          <p className="settings-muted">
+            {conn
+              ? 'Профиль Alpha Proxy не найден, а сервер сейчас недоступен. Подключение восстановится автоматически, как только связь появится.'
+              : 'Профиль Alpha Proxy не найден на этом устройстве. Восстанавливаем доступ…'}
+          </p>
+          <button className="settings-btn settings-btn-primary" disabled={busy} onClick={() => void run(() => window.alpha.activation.checkStatus())}>
+            {spin} Активировать заново
+          </button>
+          {connBanner}
         </div>
       )}
 
