@@ -1,5 +1,7 @@
 appId: com.alpha.browser
 productName: Alpha Browser
+# Installed application binary name -> "Alpha Browser.exe".
+executableName: Alpha Browser
 directories:
   buildResources: resources
   output: release
@@ -32,14 +34,23 @@ extraResources:
 win:
   target:
     - nsis
-  # electron-builder generates the multi-size .ico from this PNG (>=256px).
-  icon: resources/icon.png
+  # Real multi-resolution Windows icon (16/24/32/48/64/128/256) generated from
+  # resources/icon.png. NSIS requires a true .ico (not a PNG renamed .ico).
+  icon: resources/icon.ico
 nsis:
   oneClick: false
-  perMachine: false
+  # Install to Program Files for all users (requires UAC elevation).
+  perMachine: true
   allowToChangeInstallationDirectory: true
-  installerIcon: resources/icon.png
-  uninstallerIcon: resources/icon.png
+  # Fixed installer filename requested for distribution.
+  artifactName: AlphaBrowserSetup.${ext}
+  installerIcon: resources/icon.ico
+  uninstallerIcon: resources/icon.ico
+  # Header icon (top-right of the installer) — also a true .ico.
+  installerHeaderIcon: resources/icon.ico
   shortcutName: Alpha Browser
   createDesktopShortcut: true
   createStartMenuShortcut: true
+  # Ensure the app is registered in the Windows "Installed apps" list.
+  menuCategory: false
+  runAfterFinish: true

@@ -5,10 +5,10 @@
   "description": "Alpha Browser — приватный браузер с пер-табовой маршрутизацией DIRECT/PROXY",
   "productName": "Alpha Browser",
   "author": "Alpha Browser",
-  "homepage": "https://github.com/alpha-browser/alpha-browser",
+  "homepage": "https://github.com/negody1/Alpha-Browser",
   "repository": {
     "type": "git",
-    "url": "https://github.com/alpha-browser/alpha-browser.git"
+    "url": "https://github.com/negody1/Alpha-Browser.git"
   },
   "main": "./out/main/index.js",
   "scripts": {

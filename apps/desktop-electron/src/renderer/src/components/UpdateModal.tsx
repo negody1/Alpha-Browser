@@ -62,13 +62,15 @@ export function UpdateModal() {
           <button
             type="button"
             className="update-modal-btn-primary"
+            // "Download" = open the GitHub release page in the user's browser.
+            // No auto-download / auto-install (explicit product decision).
             onClick={() => {
               void window.alpha.updates.openReleasePage(info.releaseUrl ?? undefined);
               setDismissed(true);
             }}
           >
             <Download size={16} strokeWidth={1.9} />
-            Открыть GitHub
+            Скачать обновление
           </button>
         </footer>
       </div>

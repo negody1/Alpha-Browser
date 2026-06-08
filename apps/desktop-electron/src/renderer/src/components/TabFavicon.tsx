@@ -9,6 +9,15 @@ interface TabFaviconProps {
   size?: number;
 }
 
+// Canonical Alpha mark for internal pages (new tab, settings, any alpha:// page).
+// Relative path resolves correctly in dev (http) AND packaged file://
+// (out/renderer/branding/app-logo.png) — never the broken-image placeholder.
+const ALPHA_INTERNAL_ICON = 'branding/app-logo.png';
+
+function isInternalPage(kind: string, url: string): boolean {
+  return kind === 'ntp' || kind === 'internal' || url === NTP_URL || url.startsWith('alpha://');
+}
+
 export function TabFavicon({ kind, url, favicon, isLoading, size = 16 }: TabFaviconProps) {
   const [broken, setBroken] = useState(false);
 
@@ -16,10 +25,11 @@ export function TabFavicon({ kind, url, favicon, isLoading, size = 16 }: TabFavi
     setBroken(false);
   }, [favicon]);
 
-  if (kind === 'ntp' || url === NTP_URL) {
+  // All internal Alpha pages always show the Alpha branding icon.
+  if (isInternalPage(kind, url)) {
     return (
       <img
-        src={FAVICON_FALLBACK_URL}
+        src={ALPHA_INTERNAL_ICON}
         alt=""
         className="tab-favicon"
         width={size}

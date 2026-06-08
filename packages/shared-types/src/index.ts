@@ -420,7 +420,12 @@ export const CHROME_LAYOUT = {
 export function chromeBaselineTopHeightPx(): number {
   return CHROME_LAYOUT.tabBarHeight + CHROME_LAYOUT.toolbarHeight;
 }
-export const FAVICON_FALLBACK_URL = '/branding/favicon-fallback.png';
+// Generic favicon fallback for external sites with no icon. Inline SVG data-URI
+// so it has NO path dependency — renders identically in the main renderer, the
+// overlay window, dev (http) and packaged (file://). The old '/branding/...'
+// path resolved to the filesystem root under file:// and showed a broken image.
+export const FAVICON_FALLBACK_URL =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6.4' fill='none' stroke='%239aa0aa' stroke-width='1.2'/%3E%3Cpath d='M1.6 8h12.8M8 1.6c2.2 2 2.2 10.8 0 12.8M8 1.6c-2.2 2-2.2 10.8 0 12.8' fill='none' stroke='%239aa0aa' stroke-width='1'/%3E%3C/svg%3E";
 
 export function getWebContentBounds(
   windowWidth: number,

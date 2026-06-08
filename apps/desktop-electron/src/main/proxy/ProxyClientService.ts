@@ -640,9 +640,20 @@ export class ProxyClientService extends EventEmitter {
 
   private pickRuntimeModeFromEnv(): ProxyRuntimeMode {
     const raw = String(process.env.ALPHA_PROXY_RUNTIME ?? '').trim().toUpperCase();
+    // An explicit override always wins (dev overrides, tests, troubleshooting).
+    if (raw === 'IN_PROCESS_TEST') return 'IN_PROCESS_TEST';
     if (raw === 'SING_BOX_LOCAL_TEST') return 'SING_BOX_LOCAL_TEST';
     if (raw === 'SING_BOX_REMOTE') return 'SING_BOX_REMOTE';
-    return 'IN_PROCESS_TEST';
+    // No override: a packaged/installed build MUST use the real remote transport
+    // (Netherlands routing) with zero configuration — no env vars, no flags.
+    // Development keeps the in-process mock unless start-alpha.bat sets REMOTE.
+    let packaged = false;
+    try {
+      packaged = app.isPackaged;
+    } catch {
+      packaged = false;
+    }
+    return packaged ? 'SING_BOX_REMOTE' : 'IN_PROCESS_TEST';
   }
 
   private async pickFreePort(): Promise<number> {

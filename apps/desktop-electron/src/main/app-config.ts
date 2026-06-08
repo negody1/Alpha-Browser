@@ -14,8 +14,8 @@
  * var). See PRE_RELEASE_TODO at the bottom for the full list of values.
  */
 
-/** Placeholder repo — replace with the real `owner/name` before release. */
-export const DEFAULT_UPDATE_REPO = 'alpha-browser/alpha-browser';
+/** Public GitHub repository used for the version check. */
+export const DEFAULT_UPDATE_REPO = 'negody1/Alpha-Browser';
 
 /** Owners/names that mean "not configured yet" — the update check is skipped. */
 const PLACEHOLDER_REPOS = new Set(['alpha-browser/alpha-browser', 'owner/repo', '']);
