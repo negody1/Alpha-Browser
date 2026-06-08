@@ -100,6 +100,77 @@ detect_vhost() {
   echo "${hit}"
 }
 
+# Count server-level pechushka redirects inside server blocks whose server_name matches
+# DOMAIN. HTTP (:80) + HTTPS (:443) => 2 is normal; only >1 redirect *within the same*
+# server block is ambiguous.
+count_domain_server_level_redirs() {
+  local file="$1"
+  awk -v dom="${DOMAIN}" '
+    BEGIN { depth=0; in_srv=0; is_dom=0; in_loc=0; n=0; err=0; r301=0 }
+    {
+      if (match($0, /^[ \t]*server[ \t]*\{/) && depth == 0) {
+        in_srv=1; is_dom=0; in_loc=0; r301=0
+      }
+      if (in_srv && $0 ~ ("server_name[^;]*" dom)) is_dom=1
+      if (in_srv && is_dom && $0 ~ /^[ \t]*location[ \t]/) in_loc=1
+      if (in_srv && is_dom && !in_loc && $0 ~ /return[ \t]+301[^;]*3d-pechushka\.ru/) {
+        r301++
+        if (r301 > 1) err=1
+        if (r301 == 1) n++
+      }
+      o=gsub(/\{/, "&", $0); c=gsub(/\}/, "&", $0)
+      depth += o - c
+      if (in_srv && depth == 0) { in_srv=0; is_dom=0; in_loc=0; r301=0 }
+    }
+    END { if (err) exit 2; print n }
+  ' "${file}"
+}
+
+# Patch each server block for DOMAIN: insert alpha snippet + wrap server-level pechushka
+# redirect in `location / { ... }`. Supports separate HTTP and HTTPS blocks (count=2).
+# Exit 2 if any DOMAIN server block has >1 server-level pechushka redirect.
+patch_vhost_for_alpha() {
+  local src="$1" dst="$2"
+  awk -v inc="include ${NGINX_LOC_SNIPPET};" -v dom="${DOMAIN}" '
+    BEGIN { depth=0; in_srv=0; is_dom=0; in_loc=0; r301=0; inc_done=0; err=0 }
+    {
+      line=$0
+      if (match(line, /^[ \t]*server[ \t]*\{/) && depth == 0) {
+        in_srv=1; is_dom=0; in_loc=0; r301=0; inc_done=0
+      }
+      if (in_srv && line ~ ("server_name[^;]*" dom)) is_dom=1
+      if (in_srv && is_dom && line ~ /^[ \t]*location[ \t]/) {
+        if (!inc_done && index(line, "alpha-access.conf") == 0) {
+          match(line, /^[ \t]*/); print substr(line, 1, RLENGTH) inc
+          inc_done=1
+        }
+        in_loc=1
+      }
+      if (in_srv && is_dom && !in_loc && line ~ /return[ \t]+301[^;]*3d-pechushka\.ru/) {
+        r301++
+        if (r301 > 1) { err=1; print line; next }
+        if (!inc_done) {
+          match(line, /^[ \t]*/); print substr(line, 1, RLENGTH) inc
+          inc_done=1
+        }
+        match(line, /^[ \t]*/); ind=substr(line, 1, RLENGTH)
+        stmt=line; sub(/^[ \t]*/, "", stmt)
+        print ind "location / { " stmt " }"
+        o=gsub(/\{/, "&", line); c=gsub(/\}/, "&", line)
+        depth += o - c
+        if (in_srv && depth == 0) { in_srv=0; is_dom=0; in_loc=0; r301=0; inc_done=0 }
+        next
+      }
+      print line
+      o=gsub(/\{/, "&", line); c=gsub(/\}/, "&", line)
+      depth += o - c
+      if (in_srv && depth == 0) { in_srv=0; is_dom=0; in_loc=0; r301=0; inc_done=0 }
+    }
+    END { exit (err ? 2 : 0) }
+  ' "${src}" > "${dst}"
+}
+
+
 # =============================================================================
 # PHASE 1 — PREFLIGHT (read-only, runs in BOTH modes)
 # =============================================================================
@@ -132,8 +203,13 @@ VHOST="$(detect_vhost || true)"
 if [ -n "${VHOST}" ] && [ -f "${VHOST}" ]; then
   ok "nginx vhost for ${DOMAIN}: ${VHOST}"
   if grep -qE "return[[:space:]]+301[^;]*3d-pechushka\.ru" "${VHOST}"; then
-    REDIR_COUNT="$(grep -cE "return[[:space:]]+301[^;]*3d-pechushka\.ru" "${VHOST}")"
-    ok "current redirect to 3d-pechushka.ru present (${REDIR_COUNT} directive(s))"
+    if ! DOMAIN_REDIRECT_BLOCKS="$(count_domain_server_level_redirs "${VHOST}" 2>/tmp/alpha-nginx-redir.err)"; then
+      warn "multiple server-level pechushka redirects inside one ${DOMAIN} server block (ambiguous)"
+    elif [ "${DOMAIN_REDIRECT_BLOCKS}" -ge 1 ] 2>/dev/null; then
+      ok "pechushka redirect in ${DOMAIN} server block(s): ${DOMAIN_REDIRECT_BLOCKS} (HTTP+HTTPS = 2 is OK)"
+    else
+      warn "pechushka redirect present in file but not in a ${DOMAIN} server block — manual nginx review may be needed"
+    fi
   else
     warn "no 'return 301 ...3d-pechushka.ru' directive found in vhost (manual nginx review may be needed)"
   fi
@@ -153,7 +229,7 @@ log "exclude   -> test.mjs, *.local.json, data/, node_modules, .git, release, ou
 log "profile   -> require ${PROFILE} (validated by key-name; chmod 600 ${APP_USER}:${APP_GROUP})"
 log "env       -> ${ENV_FILE} (root:${APP_GROUP} 640; ALPHA_HASH_SALT + ALPHA_ADMIN_TOKEN generated on-box; no admin login/password)"
 log "systemd   -> alpha-access.service, alpha-sync.service, alpha-sync.timer"
-log "nginx     -> snippets ${NGINX_LOC_SNIPPET} + ${NGINX_HDR_SNIPPET}; vhost: convert server-level redirect to 'location / { return 301 ...; }' and add alpha locations"
+log "nginx     -> snippets ${NGINX_LOC_SNIPPET} + ${NGINX_HDR_SNIPPET}; vhost: per-${DOMAIN} server block, wrap pechushka redirect(s) in location / and add alpha include (HTTP+HTTPS OK)"
 log "validate  -> systemctl health + curl /api/alpha/health + curl alpha paths (200) + '/' (301)"
 
 if [ "${PF_FAIL}" -ne 0 ] && [ "${DRY}" -eq 0 ]; then
@@ -238,9 +314,14 @@ if ! node -e '
   const req=["server","port","publicKey","shortId","serverName"];
   const missing=req.filter(k=>!(k in o)||o[k]===null||o[k]==="");
   if(missing.length){ console.error("MISSING_KEYS:"+missing.join(",")); process.exit(3); }
+  // Base profile must NOT carry a device uuid — backend injects per-device uuid on activation.
+  if ("uuid" in o && o.uuid !== null && o.uuid !== "") {
+    console.error("UNEXPECTED_KEY:uuid");
+    process.exit(4);
+  }
   process.exit(0);
 ' "${PROFILE}"; then
-  die "base profile failed validation (invalid JSON or missing required keys; values were not shown)"
+  die "base profile failed validation (invalid JSON, missing required keys, or unexpected uuid — values were not shown)"
 fi
 chown "${APP_USER}:${APP_GROUP}" "${PROFILE}"; chmod 600 "${PROFILE}"
 ok "base profile present, valid, chmod 600 ${APP_USER}:${APP_GROUP} (contents not shown)"
@@ -370,40 +451,18 @@ ok "nginx snippets written"
 if grep -q "snippets/alpha-access.conf" "${VHOST}"; then
   ok "vhost already references alpha-access.conf — skipping vhost edit (idempotent)"
 else
-  REDIR_COUNT="$(grep -cE "return[[:space:]]+301[^;]*3d-pechushka\.ru" "${VHOST}" || true)"
   TMP_VHOST="$(mktemp)"
-  if [ "${REDIR_COUNT}" = "1" ]; then
-    # Convert the single server-level redirect into a `location /` and add alpha locations.
-    awk -v inc="include ${NGINX_LOC_SNIPPET};" '
-      $0 ~ /return[ \t]+301[^;]*3d-pechushka\.ru/ && !done {
-        match($0, /^[ \t]*/); ind=substr($0,1,RLENGTH);
-        stmt=$0; sub(/^[ \t]*/,"",stmt);
-        print ind inc;
-        print ind "location / { " stmt " }";
-        done=1; next;
-      }
-      { print }
-    ' "${VHOST}" > "${TMP_VHOST}"
-    ok "transformed server-level redirect -> 'location / { ... }' + added alpha locations"
-  elif [ "${REDIR_COUNT}" = "0" ]; then
-    # No server-level redirect (already location-based). Just add the alpha locations
-    # right after the matching server_name line.
-    awk -v inc="include ${NGINX_LOC_SNIPPET};" -v dom="${DOMAIN}" '
-      $0 ~ ("server_name[^;]*" dom) && !done {
-        print; match($0, /^[ \t]*/); ind=substr($0,1,RLENGTH); print ind inc; done=1; next;
-      }
-      { print }
-    ' "${VHOST}" > "${TMP_VHOST}"
-    warn "no server-level redirect found; added alpha locations after server_name. Ensure a 'location /' redirect to 3d-pechushka.ru already exists."
-  else
+  if ! patch_vhost_for_alpha "${VHOST}" "${TMP_VHOST}"; then
     rm -f "${TMP_VHOST}"
-    die "ambiguous: ${REDIR_COUNT} redirect directives in ${VHOST}. Edit manually per DEPLOY.md §5, then re-run."
+    die "ambiguous nginx layout: more than one server-level pechushka redirect inside a single ${DOMAIN} server block. Edit manually per DEPLOY.md §5, then re-run."
   fi
-  # sanity: the transformed file must still contain the alpha include
-  grep -q "snippets/alpha-access.conf" "${TMP_VHOST}" || { rm -f "${TMP_VHOST}"; die "vhost transform produced no alpha include — aborting without writing"; }
+  grep -q "snippets/alpha-access.conf" "${TMP_VHOST}" || {
+    rm -f "${TMP_VHOST}"
+    die "vhost transform produced no alpha include — aborting without writing"
+  }
   install -o root -g root -m 0644 "${TMP_VHOST}" "${VHOST}"
   rm -f "${TMP_VHOST}"
-  ok "vhost updated: ${VHOST}"
+  ok "vhost updated: ${VHOST} (per-server-block transform; HTTP+HTTPS redirects supported)"
 fi
 
 # validate; auto-restore on failure

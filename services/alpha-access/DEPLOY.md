@@ -1,10 +1,25 @@
 # Alpha Access — Production Deploy Plan (`3d.negody.ru`)
 
-> **STATUS: PLAN ONLY. DO NOT EXECUTE AS PART OF THE RELEASE PASS.**
-> This documents the exact steps to bring Alpha Access live behind the existing
-> nginx on the VPS. No step here is run from the repo. Run on the server, as root,
-> reviewing each command. The backend is a zero-dependency Node `http` service that
-> binds **127.0.0.1:8090** only — nginx terminates TLS and reverse-proxies.
+> **Deploy via `deploy.sh` on the VPS** (dry-run first, then `--apply`).
+> The backend is a zero-dependency Node `http` service that binds **127.0.0.1:8090**
+> only — nginx terminates TLS and reverse-proxies `/alpha*`, `/admin/alpha`, and
+> `/api/alpha/*` while everything else on `3d.negody.ru` keeps redirecting to
+> `3d-pechushka.ru`.
+
+---
+
+## Deploy script (`deploy.sh`)
+
+On the VPS, from a copy of `services/alpha-access/`:
+
+```bash
+chmod +x deploy.sh
+./deploy.sh              # dry-run (default) — inspect only, no changes
+./deploy.sh --apply      # backup-first deploy (requires profile file first)
+```
+
+Dry-run checks: root, node, nginx, systemd, sing-box, vhost detection, profile
+presence (warn only in dry-run for missing profile — apply fails in PHASE 5).
 
 ---
 
@@ -35,18 +50,65 @@ sudo install -o alpha -g alpha -m 0644 server.mjs sync-singbox.mjs /opt/alpha-ac
 sudo cp -r public /opt/alpha-access/ && sudo chown -R alpha:alpha /opt/alpha-access/public
 ```
 
-## 2. Real proxy profile (server-side secret)
+## 2. Base proxy profile (`alpha-proxy-profile.local.json`)
 
-The real VLESS/Reality base profile lives **only** on the server, never in git:
+### What it is
+
+The **shared** VLESS/Reality parameters that Alpha Access merges with a **per-device
+uuid** at activation time. The file lives **only on the server**, never in git.
+
+`deploy.sh` **does not generate this file**. You must create it **before**
+`./deploy.sh --apply`. PHASE 5 aborts if the file is missing or invalid.
+
+### Required keys (and only these for the base profile)
+
+| Key | Purpose |
+|-----|---------|
+| `server` | Client-facing VPS host/IP for the VLESS endpoint |
+| `port` | VLESS listen port (e.g. the inbound `listen_port` on the VPS) |
+| `publicKey` | Reality **public** key (client side) |
+| `shortId` | Reality short id |
+| `serverName` | Reality SNI / `server_name` (handshake target) |
+
+Optional: `flow` (e.g. `xtls-rprx-vision`).
+
+**Must NOT contain:** `uuid` — the backend mints a unique uuid per device on
+activation. If `uuid` is present, `deploy.sh` validation fails.
+
+### How to obtain the file (deploy.sh does NOT auto-build it)
+
+sing-box config on the server typically holds the Reality **private** key and
+inbound params, but **not** the client `publicKey` and not always an unambiguous
+`server` hostname. Therefore the operator must assemble the JSON manually from
+your provisioning records:
+
+1. **`port`** — from the VLESS inbound `listen_port` in `/etc/sing-box/config.json`.
+2. **`shortId` / `serverName`** — from the inbound `tls.reality` / `tls.server_name`
+   in the same file (key names only; do not commit values).
+3. **`publicKey`** — derive from your Reality keypair using your standard tooling
+   (sing-box / openssl / original provisioning notes). This is **not** stored as
+   `public_key` in the server inbound JSON.
+4. **`server`** — the public IP or hostname clients use to reach the VLESS endpoint
+   (often the NL egress IP bound on the outbound, not `127.0.0.1` / `0.0.0.0`).
+
+Use `alpha-proxy-profile.example.json` in this directory as a **shape template only**
+(placeholders — never real values).
+
+### Install on the VPS (before `--apply`)
 
 ```bash
-sudoedit /var/lib/alpha-access/alpha-proxy-profile.local.json   # paste real Reality params
+sudo mkdir -p /var/lib/alpha-access
+sudoedit /var/lib/alpha-access/alpha-proxy-profile.local.json
+# paste JSON with the five required keys (no uuid)
 sudo chown alpha:alpha /var/lib/alpha-access/alpha-proxy-profile.local.json
 sudo chmod 600 /var/lib/alpha-access/alpha-proxy-profile.local.json
 ```
 
-The runtime data store (`data/`, hashed device-ids/codes, admin hash) is created by the
-service under `ALPHA_DATA_FILE` with mode 600. Path set below.
+If the `alpha` user does not exist yet, create the file as root; `deploy.sh` PHASE 3
+creates the user and PHASE 5 sets `alpha:alpha` + mode `600`.
+
+The runtime data store (`data/`, hashed device-ids/codes, admin hash) is created by
+the service under `ALPHA_DATA_FILE` with mode 600. Path set below.
 
 ## 3. Secrets / environment
 
@@ -131,12 +193,15 @@ curl -s http://127.0.0.1:8090/api/alpha/health   # -> {"ok":true}
 
 ## 5. nginx — serve `/alpha*` locally, keep redirecting everything else
 
-**Current state:** the `3d.negody.ru` HTTPS vhost is a catch-all
-`return 301 https://3d-pechushka.ru$request_uri;` (verified: every path → 301).
-The fix is to move that redirect from the **server** level into a `location / {}`
-block, then add higher-priority `location` blocks for the Alpha paths. nginx match
-precedence guarantees `location =` (exact) and `location ^~` (prefix) win over the
-`location /` fallback, so only `/alpha*` reaches the service — the rest still redirects.
+**Current state:** `3d.negody.ru` often has **two** server blocks (HTTP :80 and
+HTTPS :443), each with a server-level `return 301 …3d-pechushka.ru`. That is valid
+nginx — **not** an error. `deploy.sh` PHASE 8 transforms **each** `3d.negody.ru`
+server block: inserts `include snippets/alpha-access.conf;` and wraps the pechushka
+redirect in `location / { … }`. Alpha path locations in the snippet win by nginx
+precedence; everything else still redirects to pechushka.
+
+Manual edit (below) is only needed if `deploy.sh` reports an **ambiguous** layout
+(e.g. more than one server-level pechushka redirect **inside the same** server block).
 
 ### Exact diff for the `3d.negody.ru` server block
 
@@ -243,7 +308,7 @@ Each step: **Expected** = pass condition; **FAIL** = stop and roll back.
 | # | Step | Expected | FAIL if |
 |---|------|----------|---------|
 | 1 | Open `https://3d.negody.ru/alpha` | 200, landing/registration page renders (not the pechushka redirect) | 301 to pechushka, 404, or 502 |
-| 2 | Submit a test email on `/alpha/register` | `{ok:true}`; row appears `pending` in admin | 4xx/5xx, or no row created |
+| 2 | Submit a test email on `/alpha/register` | `{status:"submitted"}`; row appears `pending` in admin | 4xx/5xx, or no row created |
 | 3 | First open of `/admin/alpha` | First-run **wizard** shown (login+password+confirm) | login form shown with no admin, or 301/404 |
 | 3a | Create admin via wizard | Auto-logged in, admin table visible; reopening `/admin/alpha` now shows **login**, wizard gone | wizard still appears, or `POST /setup` succeeds twice |
 | 4 | Approve the test request | Status → `approved`; one-time code shown once | no code, or code shown repeatedly |
