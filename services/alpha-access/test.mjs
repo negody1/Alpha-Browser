@@ -25,6 +25,8 @@ const env = {
   ALPHA_DATA_FILE: dataFile,
   ALPHA_HASH_SALT: 'test-salt',
   ALPHA_MAX_ATTEMPTS: '5',
+  ALPHA_ADMIN_USER: 'root',
+  ALPHA_ADMIN_PASSWORD: 'init-pass-1',
 };
 const srv = spawn(process.execPath, [join(__dir, 'server.mjs')], { env });
 let log = '';
@@ -36,6 +38,16 @@ async function api(path, method = 'GET', body, admin = false) {
   if (admin) headers.authorization = 'Bearer ' + TOKEN;
   const res = await fetch(BASE + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
   return { status: res.status, json: await res.json().catch(() => ({})) };
+}
+// cookie-aware client (session login flow). `cookie` carries the alpha_admin session.
+async function capi(path, method = 'GET', body, cookie) {
+  const headers = { 'content-type': 'application/json' };
+  if (cookie) headers.cookie = cookie;
+  const res = await fetch(BASE + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  const setCookie = res.headers.get('set-cookie') || '';
+  const m = /alpha_admin=([^;]*)/.exec(setCookie);
+  const token = m ? m[1] : null; // '' means cleared (logout)
+  return { status: res.status, json: await res.json().catch(() => ({})), setCookie, sessionCookie: token != null ? `alpha_admin=${token}` : null };
 }
 let fails = 0;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -106,6 +118,47 @@ try {
   check('lockout: attempts counted + locked_until set', recC && recC.attempts >= 5 && recC.locked_until > 0);
   const lockedTry = await api('/api/alpha/device/activate', 'POST', { email: C, code: apprC.json.activation_code, device_id: 'dC' });
   check('lockout: correct code rejected while locked', lockedTry.json.status === 'invalid_code' && !lockedTry.json.profile);
+
+  // ---- ADMIN AUTH (login/password sessions) ----
+  // admin routes blocked without any auth (no cookie, no bearer)
+  const noAuth = await api('/api/alpha/admin/list', 'GET');
+  check('admin route blocked without auth -> 401', noAuth.status === 401);
+
+  // login fail (wrong password) -> 401, no session cookie
+  const badLogin = await capi('/api/alpha/admin/login', 'POST', { user: 'root', password: 'nope' });
+  check('login fail -> 401 + no session', badLogin.status === 401 && !badLogin.sessionCookie);
+
+  // login success (bootstrap admin from env) -> 200 + httpOnly session cookie
+  const okLogin = await capi('/api/alpha/admin/login', 'POST', { user: 'root', password: 'init-pass-1' });
+  let cookie = okLogin.sessionCookie;
+  check('login success -> 200 + httpOnly session cookie', okLogin.status === 200 && !!cookie && /HttpOnly/i.test(okLogin.setCookie) && /SameSite=Lax/i.test(okLogin.setCookie));
+
+  // session cookie authorizes admin routes + /me returns user (never the hash)
+  const me = await capi('/api/alpha/admin/me', 'GET', null, cookie);
+  check('session /me -> user, no secret', me.status === 200 && me.json.user === 'root' && !me.json.hash && !me.json.salt);
+  const listCookie = await capi('/api/alpha/admin/list', 'GET', null, cookie);
+  check('session cookie authorizes admin list', listCookie.status === 200 && Array.isArray(listCookie.json.requests));
+
+  // password change: wrong current rejected; correct accepted
+  const badChange = await capi('/api/alpha/admin/change-credentials', 'POST', { current_password: 'WRONG', new_password: 'second-pass-2' }, cookie);
+  check('change-creds wrong current -> rejected', badChange.status !== 200);
+  const okChange = await capi('/api/alpha/admin/change-credentials', 'POST', { current_password: 'init-pass-1', new_password: 'second-pass-2' }, cookie);
+  check('change-creds correct -> 200', okChange.status === 200);
+
+  // old password no longer works; new password works
+  const oldPw = await capi('/api/alpha/admin/login', 'POST', { user: 'root', password: 'init-pass-1' });
+  check('old password invalid after change -> 401', oldPw.status === 401);
+  const newPw = await capi('/api/alpha/admin/login', 'POST', { user: 'root', password: 'second-pass-2' });
+  check('new password valid after change -> 200', newPw.status === 200 && !!newPw.sessionCookie);
+  cookie = newPw.sessionCookie;
+
+  // logout invalidates the session
+  const out = await capi('/api/alpha/admin/logout', 'POST', null, cookie);
+  check('logout -> 200 + cookie cleared', out.status === 200);
+  const meAfter = await capi('/api/alpha/admin/me', 'GET', null, cookie);
+  check('session invalid after logout -> 401', meAfter.status === 401);
+
+  check('no admin password hash/salt in server logs', !/init-pass-1|second-pass-2|scrypt|"hash"|"salt"/i.test(log));
 
   check('no profile/secret fields in server logs', !/uuid|publicKey|REALITY|xtls-rprx/i.test(log));
 } finally {

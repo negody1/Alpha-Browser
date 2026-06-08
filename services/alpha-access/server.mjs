@@ -36,6 +36,9 @@ const CFG = {
   codeTtlMin: Number(process.env.ALPHA_CODE_TTL_MIN || 1440), // 24h
   maxAttempts: Number(process.env.ALPHA_MAX_ATTEMPTS || 5),
   lockMin: Number(process.env.ALPHA_LOCK_MIN || 15),
+  adminUser: process.env.ALPHA_ADMIN_USER || '',
+  adminPassword: process.env.ALPHA_ADMIN_PASSWORD || '',
+  sessionHours: Number(process.env.ALPHA_SESSION_HOURS || 12),
 };
 
 // ── atomic JSON store ──
@@ -54,6 +57,69 @@ function saveDB(db) {
   renameSync(tmp, CFG.dataFile);
 }
 let DB = loadDB();
+
+// ── admin auth (password + sessions) ──
+// Password: scrypt(password, per-admin random salt). Never logged / returned.
+function hashPassword(password, saltHex) {
+  return crypto.scryptSync(String(password), Buffer.from(saltHex, 'hex'), 64).toString('hex');
+}
+function setAdmin(user, password) {
+  const saltHex = crypto.randomBytes(16).toString('hex');
+  DB.admin = { user: String(user).trim(), salt: saltHex, hash: hashPassword(password, saltHex), updated_at: new Date().toISOString() };
+  saveDB(DB);
+}
+function verifyAdmin(user, password) {
+  const a = DB.admin;
+  if (!a || String(user).trim() !== a.user) return false;
+  const want = Buffer.from(a.hash, 'hex');
+  const got = Buffer.from(hashPassword(password, a.salt), 'hex');
+  return want.length === got.length && crypto.timingSafeEqual(want, got);
+}
+// Bootstrap: create the admin from env ONLY if none exists yet.
+if (!DB.admin && CFG.adminUser && CFG.adminPassword) {
+  setAdmin(CFG.adminUser, CFG.adminPassword);
+  console.log('[alpha-access] bootstrap admin created from env');
+}
+
+// In-memory sessions (lost on restart -> admin re-logs in; no tokens on disk).
+const sessions = new Map();
+function newSession(user) {
+  const token = crypto.randomBytes(32).toString('hex');
+  sessions.set(token, { user, expires: Date.now() + CFG.sessionHours * 3600_000 });
+  return token;
+}
+function sessionUser(token) {
+  const s = token && sessions.get(token);
+  if (!s) return null;
+  if (Date.now() > s.expires) {
+    sessions.delete(token);
+    return null;
+  }
+  return s.user;
+}
+function parseCookie(req, name) {
+  const raw = String(req.headers.cookie || '');
+  for (const part of raw.split(';')) {
+    const [k, ...v] = part.trim().split('=');
+    if (k === name) return v.join('=');
+  }
+  return null;
+}
+function setSessionCookie(req, res, token) {
+  const https = String(req.headers['x-forwarded-proto'] || '').includes('https');
+  const attrs = [
+    `alpha_admin=${token}`,
+    'HttpOnly',
+    'SameSite=Lax',
+    'Path=/',
+    `Max-Age=${CFG.sessionHours * 3600}`,
+  ];
+  if (https) attrs.push('Secure');
+  res.setHeader('Set-Cookie', attrs.join('; '));
+}
+function clearSessionCookie(res) {
+  res.setHeader('Set-Cookie', 'alpha_admin=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0');
+}
 
 // ── helpers ──
 const now = () => new Date().toISOString();
@@ -124,10 +190,44 @@ function readBody(req) {
 const clientIp = (req) =>
   (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || '?';
 function requireAdmin(req) {
+  // Admin UI uses the session cookie; automation (sync-singbox) uses the bearer token.
+  if (sessionUser(parseCookie(req, 'alpha_admin'))) return true;
   const h = String(req.headers['authorization'] || '');
   const tok = h.startsWith('Bearer ') ? h.slice(7) : '';
   if (!CFG.adminToken || !tok || tok.length !== CFG.adminToken.length) return false;
   return crypto.timingSafeEqual(Buffer.from(tok), Buffer.from(CFG.adminToken));
+}
+
+async function handleLogin(req, res, ip) {
+  if (rateLimited(ip, 'login', 10)) return send(res, 429, { error: 'rate_limited' });
+  const body = await readBody(req);
+  if (!body || !verifyAdmin(body.user, body.password)) return send(res, 401, { error: 'invalid_credentials' });
+  setSessionCookie(req, res, newSession(DB.admin.user));
+  return send(res, 200, { ok: true, user: DB.admin.user });
+}
+function handleLogout(req, res) {
+  const t = parseCookie(req, 'alpha_admin');
+  if (t) sessions.delete(t);
+  clearSessionCookie(res);
+  return send(res, 200, { ok: true });
+}
+function handleMe(req, res) {
+  const user = sessionUser(parseCookie(req, 'alpha_admin'));
+  if (!user) return send(res, 401, { error: 'unauthorized' });
+  return send(res, 200, { user });
+}
+async function handleChangeCreds(req, res) {
+  const user = sessionUser(parseCookie(req, 'alpha_admin'));
+  if (!user) return send(res, 401, { error: 'unauthorized' });
+  const body = await readBody(req);
+  if (!body || !verifyAdmin(DB.admin.user, body.current_password)) return send(res, 403, { error: 'wrong_current_password' });
+  const newUser = String(body.new_user || DB.admin.user).trim();
+  const newPass = body.new_password ? String(body.new_password) : String(body.current_password);
+  if (!newUser || newPass.length < 6) return send(res, 400, { error: 'weak_credentials' });
+  setAdmin(newUser, newPass);
+  sessions.clear(); // invalidate all sessions -> force re-login with new creds
+  clearSessionCookie(res);
+  return send(res, 200, { ok: true });
 }
 
 // ── handlers ──
@@ -310,6 +410,10 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && (path === '/admin/alpha' || path === '/admin/alpha/')) return serveStatic(res, 'admin.html', 'text/html; charset=utf-8');
     if (req.method === 'POST' && path === '/api/alpha/register') return handleRegister(req, res, ip);
     if (req.method === 'POST' && path === '/api/alpha/device/activate') return handleActivate(req, res, ip);
+    if (req.method === 'POST' && path === '/api/alpha/admin/login') return handleLogin(req, res, ip);
+    if (req.method === 'POST' && path === '/api/alpha/admin/logout') return handleLogout(req, res);
+    if (req.method === 'GET' && path === '/api/alpha/admin/me') return handleMe(req, res);
+    if (req.method === 'POST' && path === '/api/alpha/admin/change-credentials') return handleChangeCreds(req, res);
     if (path.startsWith('/api/alpha/admin/')) return handleAdmin(req, res, path);
     if (req.method === 'GET' && path === '/api/alpha/health') return send(res, 200, { ok: true });
     return send(res, 404, { error: 'not_found' });
