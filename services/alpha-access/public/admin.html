@@ -14,7 +14,8 @@
   button.p { background:linear-gradient(135deg,#7a4dff,#9b6cff); } button.d { background:#5a2330; }
   table { width:100%; border-collapse:collapse; font-size:13px; } th,td { text-align:left; padding:8px 10px; border-bottom:1px solid rgba(255,255,255,.08); }
   th { color:rgba(255,255,255,.5); } .s { padding:2px 8px; border-radius:999px; font-size:12px; }
-  .s.pending{background:#4a3a14;color:#ffcf8b}.s.approved{background:#13402a;color:#8be0a8}.s.denied,.s.revoked{background:#4a1722;color:#ff9aa9}
+  .s.pending{background:#4a3a14;color:#ffcf8b}.s.approved{background:#13402a;color:#8be0a8}
+  .s.active{background:#1a3352;color:#8ec5ff}.s.denied,.s.revoked{background:#4a1722;color:#ff9aa9}
   .muted { color:rgba(255,255,255,.45); } .card{border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:18px;max-width:360px;background:#141821}
   .hide{display:none} .err{color:#ff9aa9;min-height:18px}
   details{margin-top:18px} summary{cursor:pointer;color:rgba(255,255,255,.6)}
@@ -102,20 +103,29 @@
     else $('cerr').textContent = r.json.error === 'wrong_current_password' ? 'Неверный текущий пароль' : (r.json.error === 'weak_credentials' ? 'Пароль слишком короткий' : 'Ошибка');
   }
   async function load() { const j = await api('/api/alpha/admin/list'); if (j.status===200){ DATA=j.json; render(); } else boot(); }
+  function statusLabel(r, activeCount) {
+    if (r.status === 'pending') return ['pending', 'Ожидает подтверждения'];
+    if (r.status === 'revoked') return ['revoked', 'Отключён'];
+    if (r.status === 'denied') return ['denied', 'Отклонён'];
+    if (r.status === 'approved' && activeCount > 0) return ['active', 'Активирован'];
+    if (r.status === 'approved') return ['approved', 'Одобрен'];
+    return [r.status, r.status];
+  }
   function render() {
     const f = $('filter').value.trim().toLowerCase();
     const byEmail = {}; for (const d of DATA.devices) (byEmail[d.email_normalized]=byEmail[d.email_normalized]||[]).push(d);
     $('rows').innerHTML = DATA.requests.filter(r=>!f||r.email_normalized.includes(f)).map(r=>{
       const devs=(byEmail[r.email_normalized]||[]); const active=devs.filter(d=>d.status==='active').length;
-      return `<tr><td>${r.email_normalized}</td><td><span class="s ${r.status}">${r.status}</span></td>
+      const [cls, label] = statusLabel(r, active);
+      return `<tr><td>${r.email_normalized}</td><td><span class="s ${cls}">${label}</span></td>
         <td class="muted">${(r.created_at||'').slice(0,16).replace('T',' ')}</td><td class="muted">${(r.approved_at||'').slice(0,16).replace('T',' ')}</td>
         <td>${r.has_code?(r.code_used?'<span class="muted">использован</span>':'выдан'):'—'}</td><td>${active}/${devs.length}</td>
-        <td><button class="p" onclick="approve('${r.email_normalized}')">Одобрить + код</button>
+        <td><button class="p" onclick="approve('${r.email_normalized}')">Одобрить и выдать код</button>
         <button class="d" onclick="act('deny','${r.email_normalized}')">Отклонить</button>
-        <button class="d" onclick="act('revoke','${r.email_normalized}')">Отозвать</button></td></tr>`;
+        <button class="d" onclick="act('revoke','${r.email_normalized}')">Отключить доступ</button></td></tr>`;
     }).join('');
   }
-  async function approve(email){ const j=await api('/api/alpha/admin/approve','POST',{email}); if(j.json.activation_code) alert('Код для '+email+':\n\n'+j.json.activation_code+'\n\nОдноразовый, действует '+j.json.ttl_minutes+' мин.'); load(); }
+  async function approve(email){ const j=await api('/api/alpha/admin/approve','POST',{email}); if(j.json.activation_code) alert('Код для '+email+':\n\n'+j.json.activation_code+'\n\nКод показывается только один раз. Скопируйте его и передайте пользователю.\n\nДействует '+j.json.ttl_minutes+' мин.'); load(); }
   async function act(kind,email){ await api('/api/alpha/admin/'+kind,'POST',{email}); load(); }
   boot();
 </script>

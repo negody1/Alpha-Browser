@@ -24,6 +24,7 @@ import crypto from 'node:crypto';
 import { readFileSync, existsSync, writeFileSync, renameSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { githubReleasesUrl } from './config.mjs';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const CFG = {
@@ -251,9 +252,15 @@ async function handleChangeCreds(req, res) {
 }
 
 // ── handlers ──
+function handlePublicInfo(req, res) {
+  return send(res, 200, { githubReleasesUrl: githubReleasesUrl() });
+}
+
 async function handleRegister(req, res, ip) {
   if (rateLimited(ip, 'register', 8)) return send(res, 429, { error: 'rate_limited' });
   const body = await readBody(req);
+  // Honeypot: bots that fill hidden fields get a fake success without storing.
+  if (String(body?.website || '').trim()) return send(res, 200, { status: 'submitted' });
   const email = normEmail(body?.email);
   if (!body || !isEmail(email)) return send(res, 400, { error: 'invalid_email' });
   let r = DB.requests.find((x) => x.email_normalized === email);
@@ -428,6 +435,7 @@ const server = http.createServer(async (req, res) => {
   try {
     if (req.method === 'GET' && (path === '/alpha' || path === '/alpha/' || path === '/alpha/register')) return serveStatic(res, 'alpha.html', 'text/html; charset=utf-8');
     if (req.method === 'GET' && (path === '/admin/alpha' || path === '/admin/alpha/')) return serveStatic(res, 'admin.html', 'text/html; charset=utf-8');
+    if (req.method === 'GET' && path === '/api/alpha/public-info') return handlePublicInfo(req, res);
     if (req.method === 'POST' && path === '/api/alpha/register') return handleRegister(req, res, ip);
     if (req.method === 'POST' && path === '/api/alpha/device/activate') return handleActivate(req, res, ip);
     if (req.method === 'GET' && path === '/api/alpha/admin/setup-status') return handleSetupStatus(req, res);

@@ -120,6 +120,17 @@ try {
   await api('/api/alpha/register', 'POST', { email: A });
   await api('/api/alpha/register', 'POST', { email: B });
 
+  // honeypot: filled website field -> fake success, no row stored
+  const hpEmail = 'bot@honeypot.example';
+  const hp = await api('/api/alpha/register', 'POST', { email: hpEmail, website: 'http://spam.example' });
+  check('honeypot -> submitted without storing', hp.status === 200 && hp.json.status === 'submitted');
+  const listHp = await api('/api/alpha/admin/list', 'GET', null, true);
+  check('honeypot email absent from store', !(listHp.json.requests || []).some((r) => r.email_normalized === hpEmail));
+
+  // public release info endpoint
+  const info = await api('/api/alpha/public-info');
+  check('public-info -> github releases url', info.status === 200 && info.json.githubReleasesUrl === 'https://github.com/negody1/Alpha-Browser/releases');
+
   // status poll (no code) before approval -> pending (no leak)
   const poll = await api('/api/alpha/device/activate', 'POST', { email: A, device_id: 'd1' });
   check('poll(no code) -> pending', poll.json.status === 'pending');
