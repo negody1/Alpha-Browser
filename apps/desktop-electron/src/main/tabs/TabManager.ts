@@ -1270,28 +1270,12 @@ export class TabManager {
       // A failed navigation shouldn't leak the typed marker onto a later nav.
       this.typedNavTabIds.delete(tabId);
 
-      const domain = normalizeDomain(validatedURL || entry.url);
-      const attemptKey = `${tabId}:${domain}`;
-
-      if (
-        domain &&
-        entry.kind === 'web' &&
-        !this.navFallbackKeys.has(attemptKey) &&
-        this.routing.shouldAllowAutoFallback(domain, errorCode)
-      ) {
-        this.navFallbackKeys.add(attemptKey);
-        this.routing.setSessionHint(domain, 'PROXY');
-        void this.routing.applyPac().then(() => {
-          if (entry.view && !entry.view.webContents.isDestroyed()) {
-            entry.loadFailed = false;
-            entry.isLoading = true;
-            this.routing.setPendingRemember(domain);
-            entry.view.webContents.reload();
-            this.emitState();
-          }
-        });
-        return;
-      }
+      // PERF: the legacy PAC-era "auto-fallback to PROXY on a retryable error"
+      // was removed. PAC is retired, so that path called a no-op applyPac() and
+      // force-reloaded the SAME DIRECT route (no session switch) — pure added
+      // latency on transient errors ("sometimes 3–5 s"). Per-tab routing is now
+      // owned by TabEntry.partition; a real failure surfaces immediately and the
+      // user can retry (or switch route via the badge).
 
       entry.loadFailed = true;
       entry.isLoading = false;
