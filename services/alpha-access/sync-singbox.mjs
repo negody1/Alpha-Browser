@@ -31,6 +31,14 @@ async function desiredUsers() {
   return j.users || [];
 }
 
+// Normalize a users[] array to the fields sync manages, order-independent, so
+// two runs with the same logical set compare equal regardless of array order.
+function normUsers(arr) {
+  return [...arr]
+    .map((u) => ({ uuid: u.uuid, flow: u.flow, name: u.name }))
+    .sort((a, b) => String(`${a.name}|${a.uuid}`).localeCompare(String(`${b.name}|${b.uuid}`)));
+}
+
 function main(users) {
   const cfg = JSON.parse(readFileSync(CONFIG, 'utf8'));
   const inbound = (cfg.inbounds || []).find((i) => i.type === 'vless');
@@ -42,12 +50,30 @@ function main(users) {
 
   const before = existing.length;
   const after = next.length;
-  console.log(`sing-box users: base/admin=${preserved.length}  device(active)=${devUsers.length}  total ${before} -> ${after}`);
+  // Change detection: compare the logical user set we WOULD write against what
+  // is already in the config. No diff -> no backup, no write, no reload.
+  const changed = JSON.stringify(normUsers(existing)) !== JSON.stringify(normUsers(next));
+  console.log(
+    `sing-box users: base/admin=${preserved.length}  device(active)=${devUsers.length}  total ${before} -> ${after}  changed=${changed}`,
+  );
 
   if (!APPLY) {
-    console.log('DRY-RUN: no changes written. Re-run with --apply on the server to write + reload.');
+    console.log(
+      changed
+        ? 'DRY-RUN: changes pending. Re-run with --apply on the server to write + reload.'
+        : 'DRY-RUN: no changes detected; nothing to apply.',
+    );
     return;
   }
+
+  if (!changed) {
+    // PRIORITY 1 FIX: the timer fires every 2 minutes; skipping unchanged runs
+    // avoids hundreds of backup files/day and hundreds of needless sing-box
+    // reloads/day on the VPS.
+    console.log('no changes detected: sing-box users already in sync; skipping backup + reload.');
+    return;
+  }
+
   inbound.users = next;
   const backup = `${CONFIG}.bak-sync-${Date.now()}`;
   copyFileSync(CONFIG, backup);
@@ -57,7 +83,7 @@ function main(users) {
   execFileSync(BIN, ['check', '-c', tmp], { stdio: 'inherit' });
   writeFileSync(CONFIG, readFileSync(tmp, 'utf8'), 'utf8');
   execFileSync('systemctl', ['reload', 'sing-box'], { stdio: 'inherit' });
-  console.log(`applied. backup at ${backup}`);
+  console.log(`applied changes. backup at ${backup}`);
 }
 
 desiredUsers()

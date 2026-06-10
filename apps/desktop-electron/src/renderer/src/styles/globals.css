@@ -3495,6 +3495,41 @@ body {
 .onb { display: flex; flex-direction: column; gap: 10px; }
 .onb-head { display: flex; align-items: center; gap: 8px; font-size: 1rem; }
 .onb-head.onb-ok { color: #8be0a8; }
+/* PRIORITY 4: first-run onboarding wizard (modal over the shell). */
+.frw-backdrop {
+  position: fixed; inset: 0; z-index: 9000; display: flex; align-items: center; justify-content: center;
+  background: rgba(6, 8, 13, 0.62); backdrop-filter: blur(6px);
+}
+.frw-card {
+  width: min(520px, calc(100vw - 40px)); background: #141821; color: #e6e8ee;
+  border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 18px; padding: 26px 28px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+}
+.frw-dots { display: flex; gap: 7px; justify-content: center; margin-bottom: 18px; }
+.frw-dot { width: 7px; height: 7px; border-radius: 50%; background: rgba(255, 255, 255, 0.18); }
+.frw-dot.is-on { background: #9b6cff; }
+.frw-body { display: flex; flex-direction: column; gap: 12px; }
+.frw-head { display: flex; align-items: center; gap: 10px; color: #c9b6ff; }
+.frw-head h2 { margin: 0; font-size: 18px; color: #fff; }
+.frw-card p { margin: 0; color: rgba(255, 255, 255, 0.78); line-height: 1.5; }
+.frw-muted { color: rgba(255, 255, 255, 0.5) !important; font-size: 13px; }
+.frw-steps, .frw-status { margin: 4px 0 0; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.frw-steps { counter-reset: s; padding-left: 6px; }
+.frw-steps li { counter-increment: s; padding-left: 26px; position: relative; color: rgba(255, 255, 255, 0.8); }
+.frw-steps li::before {
+  content: counter(s); position: absolute; left: 0; top: 0; width: 18px; height: 18px; border-radius: 50%;
+  background: #26304a; color: #fff; font-size: 12px; display: flex; align-items: center; justify-content: center;
+}
+.frw-status li { display: flex; align-items: center; gap: 9px; color: rgba(255, 255, 255, 0.45); font-size: 14px; }
+.frw-status li.is-current { color: #fff; font-weight: 600; }
+.frw-status-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255, 255, 255, 0.25); }
+.frw-status li.is-current .frw-status-dot { background: #9b6cff; }
+.frw-status li.frw-st-ok.is-current .frw-status-dot { background: #8be0a8; }
+.frw-status li.frw-st-bad.is-current .frw-status-dot { background: #ff9aa9; }
+.frw-status li.frw-st-wait.is-current .frw-status-dot { background: #ffcf8b; }
+.frw-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+.frw-actions .settings-btn { display: inline-flex; align-items: center; gap: 6px; }
+
 .onb-head.onb-bad { color: #ff9aa9; }
 .onb-row.onb-err { color: #ffcf8b; align-items: flex-start; }
 .onb-row.onb-err svg { flex: 0 0 auto; margin-top: 2px; color: #ffcf8b; }

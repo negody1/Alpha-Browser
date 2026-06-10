@@ -32,4 +32,15 @@ export function registerProxyIpc(getService: () => ProxyClientService | null): v
     await svc.checkEgress(true);
     return snapshot(svc);
   });
+
+  // Manual recovery: restart the local transport then re-probe egress. Used by
+  // the onboarding error state ("Проверить снова") since a re-check with an
+  // unchanged profile won't restart the proxy on its own.
+  ipcMain.handle('proxy:retry', async (): Promise<ProxyDiagnosticsSnapshot | null> => {
+    const svc = getService();
+    if (!svc) return null;
+    await svc.restart();
+    await svc.checkEgress(true);
+    return snapshot(svc);
+  });
 }

@@ -12,6 +12,8 @@ coverage
 .turbo
 *.tsbuildinfo
 .electron-cache
+# electron-vite writes a transient resolved config during build
+**/electron.vite.config.*.mjs
 
 # sing-box proxy binary — delivered via scripts/windows/fetch-sing-box.ps1, never committed
 apps/desktop-electron/resources/bin/sing-box

@@ -115,6 +115,15 @@ export class ProxyClientService extends EventEmitter {
   private restartTimer: NodeJS.Timeout | null = null;
   private restartAttempt = 0;
   private restartWindow: number[] = [];
+  /**
+   * PRIORITY 2: bounded auto-recovery for a FAILED initial start (profile exists
+   * but transport ended in ERROR). Attempt 1 is the normal start(); these are the
+   * follow-up delays (attempt 2 after 10s, attempt 3 after 30s), then we stop.
+   * Distinct from scheduleRestart(), which recovers a previously-healthy link.
+   */
+  private startRecoveryTimer: NodeJS.Timeout | null = null;
+  private startRecoveryAttempt = 0;
+  private static readonly START_RECOVERY_DELAYS_MS = [10_000, 30_000];
   /** PHASE 4: cached end-to-end egress probe + throttle timestamp. */
   private lastEgress: ProxyEgressDiagnostics | null = null;
   private lastEgressAtMs = 0;
@@ -146,7 +155,20 @@ export class ProxyClientService extends EventEmitter {
     return this.getState().localSocksEndpoint;
   }
 
+  /**
+   * Public entry: a fresh, user-/startup-initiated start. Resets the recovery
+   * counter, runs one start attempt, then arms bounded auto-recovery if it failed
+   * with a transient error while a profile is present.
+   */
   async start(): Promise<ProxyClientSnapshot> {
+    this.clearStartRecovery();
+    this.startRecoveryAttempt = 0;
+    const state = await this.startOnce();
+    this.evaluateStartRecovery();
+    return state;
+  }
+
+  private async startOnce(): Promise<ProxyClientSnapshot> {
     pxlog('start:called', { mode: this.runtimeMode, status: this.status });
     if (this.status === 'CONNECTED' || this.status === 'CONNECTING' || this.status === 'RECONNECTING') {
       pxlog('start:already-active-skip', { status: this.status });
@@ -265,10 +287,58 @@ export class ProxyClientService extends EventEmitter {
     return this.getState();
   }
 
+  // PRIORITY 2: only transient failures are worth retrying. A missing binary or
+  // missing profile will not fix itself, so we never spin on those.
+  private isRecoverableStartError(): boolean {
+    return (
+      this.errorReason === 'PROCESS_EXITED' ||
+      this.errorReason === 'HEALTHCHECK_FAILED' ||
+      this.errorReason === 'PORT_BIND_FAILED' ||
+      this.errorReason === 'CONFIG_WRITE_FAILED' ||
+      this.errorReason === 'UNKNOWN'
+    );
+  }
+
+  private clearStartRecovery(): void {
+    if (this.startRecoveryTimer) {
+      clearTimeout(this.startRecoveryTimer);
+      this.startRecoveryTimer = null;
+    }
+  }
+
+  /** Decide whether to arm the next bounded recovery attempt after a start. */
+  private evaluateStartRecovery(): void {
+    if (this.status === 'CONNECTED') {
+      this.clearStartRecovery();
+      this.startRecoveryAttempt = 0;
+      return;
+    }
+    if (
+      this.status === 'ERROR' &&
+      this.isRecoverableStartError() &&
+      getRemoteProfile() // only auto-recover when a profile actually exists
+    ) {
+      const delay = ProxyClientService.START_RECOVERY_DELAYS_MS[this.startRecoveryAttempt];
+      if (delay === undefined) {
+        pxlog('start-recovery:exhausted', { attempts: this.startRecoveryAttempt + 1 });
+        return; // bounded: no infinite loop
+      }
+      this.startRecoveryAttempt += 1;
+      pxlog('start-recovery:schedule', { attempt: this.startRecoveryAttempt + 1, delayMs: delay });
+      this.clearStartRecovery();
+      this.startRecoveryTimer = setTimeout(() => {
+        this.startRecoveryTimer = null;
+        void this.startOnce().then(() => this.evaluateStartRecovery());
+      }, delay);
+    }
+  }
+
   async stop(): Promise<ProxyClientSnapshot> {
     this.clearRestartTimer();
+    this.clearStartRecovery();
     this.restartAttempt = 0;
     this.restartWindow = [];
+    this.startRecoveryAttempt = 0;
 
     await this.stopChild();
     await this.stopSocks();

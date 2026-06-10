@@ -1,4 +1,4 @@
-import { app, BrowserWindow, session, shell } from 'electron';
+import { app, BrowserWindow, Notification, session, shell } from 'electron';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { APP_NAME } from '@alpha/shared-types';
@@ -476,6 +476,24 @@ app.whenReady().then(() => {
   // PART 4: one-shot revocation check at startup (only if a profile exists).
   // Detects a server-side revoke without the user opening Settings. Not polled.
   void activationService.checkStatusOnStartup();
+  // PRIORITY 3: lightweight background revoke check (every 6h, profile-only). On
+  // revoke the profile is cleared + proxy stopped (inside checkStatus); here we
+  // surface a notification so the user learns even without opening Settings.
+  activationService.startBackgroundChecks(() => {
+    try {
+      if (Notification.isSupported()) {
+        new Notification({
+          title: 'Alpha Proxy',
+          body: 'Доступ к Alpha Proxy отключён администратором.',
+        }).show();
+      }
+    } catch {
+      /* notifications unavailable */
+    }
+    if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed()) {
+      mainWindow.webContents.send('activation:revoked');
+    }
+  });
 
   mainWindow = createWindow();
 

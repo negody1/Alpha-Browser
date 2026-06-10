@@ -74,6 +74,17 @@ export function AlphaProxyOnboarding() {
     };
   }, [activated]);
 
+  async function retryProxy() {
+    setBusy(true);
+    try {
+      // Actually restart the transport (idempotent profile re-check alone won't).
+      const d = await window.alpha.proxy.retry();
+      setDiag(d);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function copyDiagnostics() {
     // Sanitized — the snapshot already excludes uuid/keys. Egress IP is the same
     // value shown in the diagnostics panel.
@@ -202,7 +213,7 @@ export function AlphaProxyOnboarding() {
               <div className="onb-head onb-bad"><WifiOff size={18} /> <strong>Alpha Proxy временно недоступен</strong></div>
               <p className="settings-muted">{readinessError(diag)}</p>
               <div className="onb-row">
-                <button className="settings-btn settings-btn-primary" disabled={busy} onClick={() => void run(() => window.alpha.activation.checkStatus())}>
+                <button className="settings-btn settings-btn-primary" disabled={busy} onClick={() => void retryProxy()}>
                   <RotateCw size={15} /> Проверить снова
                 </button>
                 <button className="settings-btn" onClick={() => void copyDiagnostics()}>

@@ -212,6 +212,34 @@ export class ActivationService {
     }
   }
 
+  /**
+   * PRIORITY 3: lightweight background revocation check. ONE timer every 6 hours
+   * (not a tight poll), and only when a profile exists. On a revoke it clears the
+   * profile + stops the proxy (via checkStatus) and invokes `onRevoked` so the
+   * caller can surface an OS/UI notification. Interval is unref'd so it never
+   * keeps the process alive.
+   */
+  private bgTimer: ReturnType<typeof setInterval> | null = null;
+  startBackgroundChecks(onRevoked: () => void): void {
+    if (this.bgTimer) return;
+    const SIX_HOURS = 6 * 3600_000;
+    this.bgTimer = setInterval(() => {
+      void (async () => {
+        try {
+          if (!this.email || !existsSync(this.profilePath())) return;
+          const before = this.status;
+          const st = await this.checkStatus();
+          if ((st.status === 'revoked' || st.status === 'denied') && before !== st.status) {
+            onRevoked();
+          }
+        } catch {
+          /* best effort */
+        }
+      })();
+    }, SIX_HOURS);
+    this.bgTimer.unref?.();
+  }
+
   /** Re-check status with the stored device id (no code). Handles revoke. */
   async checkStatus(): Promise<ActivationState> {
     if (!this.email) return this.getState();

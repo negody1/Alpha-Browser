@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { DEFAULT_PROXY_KEY, type RouteMode } from '@alpha/shared-types';
+import type { RouteMode } from '@alpha/shared-types';
 
 /**
  * Routing controls without panel chrome, so they can be reused both as the
@@ -7,7 +7,6 @@ import { DEFAULT_PROXY_KEY, type RouteMode } from '@alpha/shared-types';
  */
 export function RoutingSettingsContent() {
   const [defaultRoute, setDefaultRoute] = useState<RouteMode>('AUTO');
-  const [proxy, setProxy] = useState('');
   const [rules, setRules] = useState<Array<{ domain: string; route: RouteMode }>>([]);
   const [newDomain, setNewDomain] = useState('');
   const [newRoute, setNewRoute] = useState<RouteMode>('PROXY');
@@ -15,17 +14,15 @@ export function RoutingSettingsContent() {
   useEffect(() => {
     void window.alpha.routing.getRules().then((r) => {
       setDefaultRoute(r.defaultRoute);
-      setProxy(r.proxyEndpoints[DEFAULT_PROXY_KEY] ?? '');
       setRules(r.rules);
     });
   }, []);
 
   async function saveDefaults(event: FormEvent) {
     event.preventDefault();
+    // The Alpha Proxy endpoint is managed automatically by the activation flow;
+    // no manual SOCKS endpoint entry is exposed to the user here (P5 cleanup).
     await window.alpha.routing.setDefaultRoute(defaultRoute);
-    if (proxy.trim()) {
-      await window.alpha.routing.setProxyEndpoint(proxy.trim());
-    }
     const r = await window.alpha.routing.getRules();
     setRules(r.rules);
   }
@@ -40,10 +37,6 @@ export function RoutingSettingsContent() {
             <option value="DIRECT">DIRECT</option>
             <option value="PROXY">PROXY</option>
           </select>
-        </label>
-        <label className="overlay-field">
-          <span>Основной прокси</span>
-          <input value={proxy} onChange={(e) => setProxy(e.target.value)} placeholder="SOCKS5 127.0.0.1:1080" />
         </label>
         <button type="submit" className="overlay-btn overlay-btn-primary">
           Сохранить

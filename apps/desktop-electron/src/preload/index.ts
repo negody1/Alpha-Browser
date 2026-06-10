@@ -185,6 +185,7 @@ export interface AlphaApi {
   proxy: {
     diagnostics: () => Promise<ProxyDiagnosticsSnapshot | null>;
     checkEgress: () => Promise<ProxyDiagnosticsSnapshot | null>;
+    retry: () => Promise<ProxyDiagnosticsSnapshot | null>;
   };
   activation: {
     getState: () => Promise<ActivationState | null>;
@@ -483,6 +484,8 @@ const alphaApi: AlphaApi = {
       ipcRenderer.invoke('proxy:diagnostics') as Promise<ProxyDiagnosticsSnapshot | null>,
     checkEgress: () =>
       ipcRenderer.invoke('proxy:checkEgress') as Promise<ProxyDiagnosticsSnapshot | null>,
+    retry: () =>
+      ipcRenderer.invoke('proxy:retry') as Promise<ProxyDiagnosticsSnapshot | null>,
   },
   activation: {
     getState: () => ipcRenderer.invoke('activation:getState') as Promise<ActivationState | null>,
