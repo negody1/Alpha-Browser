@@ -49,11 +49,25 @@
     <div class="row">
       <h1 style="margin:0">Alpha Access — администрирование</h1>
       <span class="muted" id="who"></span>
-      <input id="filter" placeholder="фильтр по email" oninput="render()" style="width:220px" />
-      <button onclick="load()">Обновить</button>
+      <input id="filter" placeholder="Поиск по Email" oninput="render()" style="width:220px" />
+      <button onclick="load()">Обновить список</button>
       <button class="d" onclick="logout()">Выйти</button>
     </div>
-    <table><thead><tr><th>email</th><th>статус</th><th>создано</th><th>одобрено</th><th>код</th><th>устройства</th><th>действия</th></tr></thead><tbody id="rows"></tbody></table>
+    <p class="muted" style="margin:-4px 0 14px">Как работает доступ: пользователь оставляет email, вы подтверждаете заявку, система выдаёт одноразовый код. Пользователь вводит код в Alpha Browser. После отключения доступ на этом устройстве прекращается.</p>
+
+    <!-- Prominent one-time activation code block (replaces alert) -->
+    <div id="codebox" class="hide" style="border:1px solid #7a4dff; border-radius:14px; padding:16px 18px; margin-bottom:16px; background:#1a1530">
+      <div class="row" style="margin-bottom:6px"><strong style="font-size:16px">Код активации</strong><span class="muted" id="codeEmail"></span></div>
+      <div class="row" style="align-items:center">
+        <code id="codeValue" style="font-size:22px; letter-spacing:2px; background:#0d1019; padding:8px 14px; border-radius:10px; color:#9b6cff"></code>
+        <button class="p" onclick="copyCode()">Скопировать код</button>
+        <span class="muted" id="codeCopied"></span>
+        <button class="d" onclick="$('codebox').classList.add('hide')">Закрыть</button>
+      </div>
+      <p class="muted" style="margin:10px 0 0">Код показывается только один раз. Скопируйте его и передайте пользователю. Действует <span id="codeTtl"></span> мин.</p>
+    </div>
+
+    <table><thead><tr><th>Email</th><th>Статус</th><th>Заявка создана</th><th>Одобрено</th><th>Код активации</th><th>Устройства</th><th>Действия</th></tr></thead><tbody id="rows"></tbody></table>
 
     <details>
       <summary>Настройки администратора</summary>
@@ -125,8 +139,27 @@
         <button class="d" onclick="act('revoke','${r.email_normalized}')">Отключить доступ</button></td></tr>`;
     }).join('');
   }
-  async function approve(email){ const j=await api('/api/alpha/admin/approve','POST',{email}); if(j.json.activation_code) alert('Код для '+email+':\n\n'+j.json.activation_code+'\n\nКод показывается только один раз. Скопируйте его и передайте пользователю.\n\nДействует '+j.json.ttl_minutes+' мин.'); load(); }
-  async function act(kind,email){ await api('/api/alpha/admin/'+kind,'POST',{email}); load(); }
+  async function approve(email){
+    const j=await api('/api/alpha/admin/approve','POST',{email});
+    if(j.json.activation_code){
+      $('codeEmail').textContent = email;
+      $('codeValue').textContent = j.json.activation_code;
+      $('codeTtl').textContent = j.json.ttl_minutes;
+      $('codeCopied').textContent = '';
+      $('codebox').classList.remove('hide');
+      $('codebox').scrollIntoView({ behavior:'smooth', block:'center' });
+    }
+    load();
+  }
+  async function copyCode(){
+    try { await navigator.clipboard.writeText($('codeValue').textContent); $('codeCopied').textContent = 'Скопировано'; }
+    catch { $('codeCopied').textContent = 'Выделите и скопируйте вручную'; }
+  }
+  async function act(kind,email){
+    const labels = { deny:'Отклонить заявку', revoke:'Отключить доступ' };
+    if (!confirm((labels[kind]||kind) + ' для ' + email + '?')) return;
+    await api('/api/alpha/admin/'+kind,'POST',{email}); load();
+  }
   boot();
 </script>
 </body>

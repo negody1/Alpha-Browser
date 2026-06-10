@@ -199,10 +199,25 @@ function requireAdmin(req) {
   return crypto.timingSafeEqual(Buffer.from(tok), Buffer.from(CFG.adminToken));
 }
 
+// Admin-login brute-force lockout: per-IP failed-attempt counter on top of the
+// per-minute rate limit. After 5 failures an IP is locked for 15 minutes. A
+// success resets the counter. Generic responses — no user/password oracle.
+const loginFails = new Map();
+const LOGIN_MAX = 5;
+const LOGIN_LOCK_MS = 15 * 60_000;
 async function handleLogin(req, res, ip) {
   if (rateLimited(ip, 'login', 10)) return send(res, 429, { error: 'rate_limited' });
+  const f = loginFails.get(ip);
+  if (f && f.until > ms()) return send(res, 429, { error: 'locked' });
   const body = await readBody(req);
-  if (!body || !verifyAdmin(body.user, body.password)) return send(res, 401, { error: 'invalid_credentials' });
+  if (!body || !verifyAdmin(body.user, body.password)) {
+    const cur = loginFails.get(ip) || { count: 0, until: 0 };
+    cur.count += 1;
+    if (cur.count >= LOGIN_MAX) cur.until = ms() + LOGIN_LOCK_MS;
+    loginFails.set(ip, cur);
+    return send(res, 401, { error: 'invalid_credentials' });
+  }
+  loginFails.delete(ip);
   setSessionCookie(req, res, newSession(DB.admin.user));
   return send(res, 200, { ok: true, user: DB.admin.user });
 }

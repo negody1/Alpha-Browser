@@ -393,8 +393,11 @@ function createWindow(): BrowserWindow {
     screenShareService = null;
     overlayManager?.destroyAll();
     overlayManager = null;
-    void proxyClient?.stop();
-    proxyClient = null;
+    // PART 0 FIX: do NOT stop()+null the proxy here. On Windows, closing the
+    // window triggers window-all-closed -> app.quit() -> before-quit, which now
+    // AWAITS proxyClient.stop() before exiting. Nulling it here (with an
+    // un-awaited stop) raced the quit and orphaned sing-box. before-quit is the
+    // single, awaited owner of proxy shutdown.
     sessionRegistry = null;
     mainWindow = null;
   });
@@ -470,6 +473,9 @@ app.whenReady().then(() => {
   // Alpha Proxy onboarding (email + activation code → profile delivery).
   activationService = new ActivationService(() => proxyClient);
   registerActivationIpc(() => activationService);
+  // PART 4: one-shot revocation check at startup (only if a profile exists).
+  // Detects a server-side revoke without the user opening Settings. Not polled.
+  void activationService.checkStatusOnStartup();
 
   mainWindow = createWindow();
 
@@ -486,11 +492,25 @@ app.whenReady().then(() => {
   });
 });
 
-// PHASE 3: belt-and-suspenders cleanup. `window.on('closed')` already stops the
-// proxy on the normal path; this also covers app.quit() / OS shutdown so the
-// sing-box child is never left running on any graceful exit.
-app.on('before-quit', () => {
-  void proxyClient?.stop();
+// PART 0 FIX: on Windows a child process is NOT killed when its parent exits, so
+// a fire-and-forget `stop()` here let the main process die before sing-box was
+// terminated — orphaning it (still holding the SOCKS port + an active VLESS
+// session with the per-device uuid). On the next launch the new instance
+// collided on the port / duplicate-uuid tunnel and PROXY tabs stopped working.
+// We now DELAY the quit until sing-box is actually stopped, then hard-exit.
+let isQuitting = false;
+app.on('before-quit', (event) => {
+  if (isQuitting || !proxyClient) return;
+  isQuitting = true;
+  event.preventDefault();
+  void (async () => {
+    try {
+      await proxyClient?.stop();
+    } catch {
+      // best effort — never block shutdown on a stop error
+    }
+    app.exit(0);
+  })();
 });
 
 app.on('window-all-closed', () => {

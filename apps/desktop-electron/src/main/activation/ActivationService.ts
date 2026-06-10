@@ -122,8 +122,18 @@ export class ActivationService {
    */
   private applyProfile(profile: unknown): void {
     const p = this.profilePath();
+    const next = JSON.stringify(profile);
+    // Idempotent: if the profile on disk is byte-identical, do NOT rewrite or
+    // restart the proxy. This keeps the startup revocation check (which re-fetches
+    // the SAME profile for an active device) from needlessly bouncing a proxy that
+    // just started.
+    try {
+      if (existsSync(p) && readFileSync(p, 'utf8') === next) return;
+    } catch {
+      /* fall through to write */
+    }
     const tmp = p + '.tmp';
-    writeFileSync(tmp, JSON.stringify(profile), { encoding: 'utf8', mode: 0o600 });
+    writeFileSync(tmp, next, { encoding: 'utf8', mode: 0o600 });
     renameSync(tmp, p);
     void this.getProxy()?.restart();
   }
@@ -181,6 +191,25 @@ export class ActivationService {
     this.email = e;
     this.applyServerStatus(String(r.status), r.profile);
     return this.getState();
+  }
+
+  /**
+   * PART 4: one-shot startup check. If a profile exists, re-validate with the
+   * server so a server-side revoke is detected WITHOUT the user opening Settings
+   * (checkStatus clears the profile + stops the proxy on 'revoked'/'denied').
+   * Throttled to once every few hours via lastCheckedAt; never polls. Best-effort
+   * (offline → network error, profile preserved).
+   */
+  async checkStatusOnStartup(): Promise<void> {
+    try {
+      if (!this.email || !existsSync(this.profilePath())) return;
+      const lastMs = this.lastCheckedAt ? Date.parse(this.lastCheckedAt) : 0;
+      const SIX_HOURS = 6 * 3600_000;
+      if (lastMs && Date.now() - lastMs < SIX_HOURS) return;
+      await this.checkStatus();
+    } catch {
+      /* best effort */
+    }
   }
 
   /** Re-check status with the stored device id (no code). Handles revoke. */

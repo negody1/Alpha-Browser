@@ -1,6 +1,28 @@
 import { useEffect, useRef, useState } from 'react';
-import { ShieldCheck, Mail, KeyRound, Loader2, WifiOff } from 'lucide-react';
-import type { ActivationState } from '@alpha/shared-types';
+import { ShieldCheck, Mail, KeyRound, Loader2, WifiOff, RotateCw, ClipboardCopy } from 'lucide-react';
+import type { ActivationState, ProxyDiagnosticsSnapshot } from '@alpha/shared-types';
+
+/** PART 3: honest readiness derived from the real proxy transport state. */
+type Readiness = 'starting' | 'checking' | 'ready' | 'error';
+function deriveReadiness(d: ProxyDiagnosticsSnapshot | null): Readiness {
+  if (!d) return 'starting';
+  if (d.status === 'ERROR') return 'error';
+  if (d.status === 'CONNECTED') return d.egress?.remoteEgressOk ? 'ready' : 'checking';
+  return 'starting'; // CONNECTING / RECONNECTING / DISCONNECTED
+}
+function readinessError(d: ProxyDiagnosticsSnapshot | null): string {
+  if (d?.status === 'CONNECTED' && d.egress && !d.egress.remoteEgressOk) {
+    return 'Соединение не прошло проверку.';
+  }
+  switch (d?.errorReason) {
+    case 'REMOTE_PROFILE_MISSING':
+      return 'Профиль Alpha Proxy не найден.';
+    case 'BINARY_MISSING':
+      return 'Компонент Alpha Proxy не найден.';
+    default:
+      return 'Не удалось запустить Alpha Proxy.';
+  }
+}
 
 /**
  * Product-facing Alpha Proxy onboarding. No SOCKS/sing-box/file/env terminology —
@@ -12,6 +34,8 @@ export function AlphaProxyOnboarding() {
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
+  const [diag, setDiag] = useState<ProxyDiagnosticsSnapshot | null>(null);
+  const [copied, setCopied] = useState(false);
   const healedRef = useRef(false);
 
   useEffect(() => {
@@ -20,6 +44,59 @@ export function AlphaProxyOnboarding() {
       if (s?.email) setEmail(s.email);
     });
   }, []);
+
+  // PART 3: while the user has a profile, track the REAL transport readiness so
+  // the UI never claims "ready" before sing-box is up and egress is verified.
+  const activated = state?.status === 'connected' && state?.hasProfile === true;
+  useEffect(() => {
+    if (!activated) {
+      setDiag(null);
+      return;
+    }
+    let alive = true;
+    let egressRequested = false;
+    const tick = async () => {
+      const d = await window.alpha.proxy.diagnostics();
+      if (!alive) return;
+      setDiag(d);
+      // Once transport is CONNECTED, run ONE egress check to confirm tabs work.
+      if (d?.status === 'CONNECTED' && !d.egress?.remoteEgressOk && !egressRequested) {
+        egressRequested = true;
+        const d2 = await window.alpha.proxy.checkEgress();
+        if (alive) setDiag(d2);
+      }
+    };
+    void tick();
+    const id = window.setInterval(() => void tick(), 1500);
+    return () => {
+      alive = false;
+      window.clearInterval(id);
+    };
+  }, [activated]);
+
+  async function copyDiagnostics() {
+    // Sanitized — the snapshot already excludes uuid/keys. Egress IP is the same
+    // value shown in the diagnostics panel.
+    const d = diag;
+    const lines = [
+      'Alpha Proxy diagnostics',
+      `status: ${d?.status ?? '-'}`,
+      `runtime: ${d?.runtimeMode ?? '-'}`,
+      `errorReason: ${d?.errorReason ?? '-'}`,
+      `socksPort: ${d?.socksPort ?? '-'}`,
+      `egressOk: ${d?.egress?.remoteEgressOk ?? '-'}`,
+      `egressIp: ${d?.egress?.egressIp ?? '-'}`,
+      `expectedIp: ${d?.egress?.expectedEgressIp ?? '-'}`,
+      `activation: ${state?.status ?? '-'} hasProfile=${state?.hasProfile ?? '-'}`,
+    ].join('\n');
+    try {
+      await navigator.clipboard.writeText(lines);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard unavailable */
+    }
+  }
 
   async function run(fn: () => Promise<ActivationState | null>) {
     setBusy(true);
@@ -101,18 +178,52 @@ export function AlphaProxyOnboarding() {
         </div>
       )}
 
-      {status === 'connected' && state?.hasProfile && (
-        <div className="onb">
-          <div className="onb-head onb-ok"><ShieldCheck size={18} /> <strong>Alpha Proxy подключён</strong></div>
-          <div className="settings-row">
-            <span className="settings-muted">Маршрут</span>
-            <span className="settings-badge is-ok">Нидерланды · Alpha Proxy</span>
+      {/* PART 3: profile present → show HONEST readiness from the transport. */}
+      {activated && (() => {
+        const r = deriveReadiness(diag);
+        if (r === 'ready') {
+          return (
+            <div className="onb">
+              <div className="onb-head onb-ok"><ShieldCheck size={18} /> <strong>Alpha Proxy готов к работе</strong></div>
+              <p className="settings-muted">Можно открывать сайты через PROXY-вкладки.</p>
+              <div className="settings-row">
+                <span className="settings-muted">Маршрут</span>
+                <span className="settings-badge is-ok">Нидерланды · Alpha Proxy</span>
+              </div>
+              <button className="settings-btn" disabled={busy} onClick={() => void run(() => window.alpha.activation.checkStatus())}>
+                {spin} Проверить статус
+              </button>
+            </div>
+          );
+        }
+        if (r === 'error') {
+          return (
+            <div className="onb">
+              <div className="onb-head onb-bad"><WifiOff size={18} /> <strong>Alpha Proxy временно недоступен</strong></div>
+              <p className="settings-muted">{readinessError(diag)}</p>
+              <div className="onb-row">
+                <button className="settings-btn settings-btn-primary" disabled={busy} onClick={() => void run(() => window.alpha.activation.checkStatus())}>
+                  <RotateCw size={15} /> Проверить снова
+                </button>
+                <button className="settings-btn" onClick={() => void copyDiagnostics()}>
+                  <ClipboardCopy size={15} /> {copied ? 'Скопировано' : 'Скопировать диагностику'}
+                </button>
+              </div>
+            </div>
+          );
+        }
+        // starting | checking
+        return (
+          <div className="onb">
+            <div className="onb-head"><Loader2 size={18} className="spin-slow" /> <strong>{r === 'checking' ? 'Проверяем соединение…' : 'Запускаем Alpha Proxy…'}</strong></div>
+            <p className="settings-muted">{r === 'checking' ? 'Проверяем, что вкладки смогут работать через Alpha Proxy.' : 'Обычно это занимает несколько секунд.'}</p>
+            <div className="settings-row">
+              <span className="settings-muted">Доступ активирован</span>
+              <span className="settings-badge">Профиль получен</span>
+            </div>
           </div>
-          <button className="settings-btn" disabled={busy} onClick={() => void run(() => window.alpha.activation.checkStatus())}>
-            {spin} Проверить соединение
-          </button>
-        </div>
-      )}
+        );
+      })()}
 
       {/* SCENARIO B: profile deleted locally — re-establishing, or offer re-activation. */}
       {status === 'connected' && !state?.hasProfile && (

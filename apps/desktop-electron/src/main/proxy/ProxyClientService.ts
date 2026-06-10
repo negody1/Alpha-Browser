@@ -24,6 +24,22 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+/**
+ * PART 1: dev-guarded proxy lifecycle diagnostics. Active only when
+ * `ALPHA_DEBUG_PROXY=1`. NEVER logs secrets — no uuid / publicKey / shortId /
+ * serverName / profile contents / tokens / activation code. Only booleans,
+ * ports, the loopback endpoint, the binary path, and PIDs.
+ */
+const PROXY_DEBUG = process.env.ALPHA_DEBUG_PROXY === '1';
+function pxlog(label: string, extra?: Record<string, unknown>): void {
+  if (!PROXY_DEBUG) return;
+  try {
+    console.log(`[alpha][proxy-dbg] ${label}`, extra ? JSON.stringify(extra) : '');
+  } catch {
+    console.log(`[alpha][proxy-dbg] ${label}`);
+  }
+}
+
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -131,7 +147,9 @@ export class ProxyClientService extends EventEmitter {
   }
 
   async start(): Promise<ProxyClientSnapshot> {
+    pxlog('start:called', { mode: this.runtimeMode, status: this.status });
     if (this.status === 'CONNECTED' || this.status === 'CONNECTING' || this.status === 'RECONNECTING') {
+      pxlog('start:already-active-skip', { status: this.status });
       return this.getState();
     }
 
@@ -151,20 +169,26 @@ export class ProxyClientService extends EventEmitter {
     ) {
       // Real sing-box runtime: a single loopback SOCKS inbound. The outbound is
       // either `direct` (LOCAL_TEST) or `vless`+Reality to the VPS (REMOTE).
+      const binPath = this.resolveSingBoxPath();
+      pxlog('binary:resolve', { binPath, exists: existsSync(binPath) });
       if (!this.canSpawnSingBox()) {
+        pxlog('binary:missing', { binPath });
         this.setStatus('ERROR', 'Компонент прокси не найден', 'BINARY_MISSING');
         return this.getState();
       }
 
       const port = await this.pickFreePort();
       this.socksPort = port;
+      pxlog('port:selected', { socksPort: port });
 
       let configPath = '';
       try {
         if (this.runtimeMode === 'SING_BOX_REMOTE') {
           const profile = getRemoteProfile();
+          pxlog('profile:lookup', { found: !!profile });
           if (!profile) {
             // No credentials in env or the local ignored profile file.
+            pxlog('profile:missing');
             this.socksPort = null;
             this.remoteProfile = null;
             this.setStatus(
@@ -205,6 +229,7 @@ export class ProxyClientService extends EventEmitter {
       const swStart = timingsEnabled() ? performance.now() : 0;
       if (swStart) console.log(`[alpha][timing] proxy:readiness-wait-start mode=${this.runtimeMode} port=${port}`);
       const ready = await this.waitForSocksReady(port, 7000);
+      pxlog('socks:ready', { ready, socksPort: port, childAlive: this.isChildAlive() });
       if (swStart) {
         console.log(
           `[alpha][timing] proxy:readiness-wait-end wait=${(performance.now() - swStart).toFixed(0)}ms ready=${ready}`,
@@ -235,6 +260,7 @@ export class ProxyClientService extends EventEmitter {
       return this.getState();
     }
 
+    pxlog('start:connected', { socksPort: this.socksPort, pid: this.child?.pid ?? null });
     this.setStatus('CONNECTED', null, null);
     return this.getState();
   }
@@ -485,13 +511,18 @@ export class ProxyClientService extends EventEmitter {
       this.clearPidFile();
       return;
     }
+    pxlog('reclaim:pidfile', { pid });
     if (pid && this.isAlphaSingBoxPid(pid)) {
       try {
         process.kill(pid);
+        pxlog('reclaim:killed', { pid });
         console.log('[alpha][proxy] reclaimed orphaned sing-box', { pid });
       } catch {
         // already gone / not permitted
+        pxlog('reclaim:kill-failed', { pid });
       }
+    } else {
+      pxlog('reclaim:no-live-orphan', { pid });
     }
     this.clearPidFile();
   }
@@ -701,13 +732,18 @@ export class ProxyClientService extends EventEmitter {
   // One process, one shared loopback SOCKS endpoint (never per-tab).
   private spawnSingBox(configPath: string): void {
     const bin = this.resolveSingBoxPath();
+    pxlog('spawn:attempt', { bin });
     this.child = spawn(bin, ['run', '-c', configPath], {
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
     });
+    pxlog('spawn:pid', { pid: this.child.pid ?? null });
     // PHASE 3: record the PID so a crashed Alpha can reclaim this exact process
     // on next launch (verified by image name; never a kill-by-name).
-    if (this.child.pid) this.writePidFile(this.child.pid);
+    if (this.child.pid) {
+      this.writePidFile(this.child.pid);
+      pxlog('pidfile:write', { pid: this.child.pid });
+    }
 
     // Ring-buffer of sanitized logs (dev-only diagnostics).
     const pushLine = (chunk: unknown) => {
@@ -737,15 +773,17 @@ export class ProxyClientService extends EventEmitter {
   private async stopChild(): Promise<void> {
     const child = this.child;
     this.child = null;
-    this.clearPidFile();
     if (!child || child.killed) {
+      this.clearPidFile();
       return;
     }
 
+    pxlog('stopChild:killing', { pid: child.pid ?? null });
     await new Promise<void>((resolve) => {
       const timeout = setTimeout(() => {
         try {
           child.kill('SIGKILL');
+          pxlog('stopChild:sigkill', { pid: child.pid ?? null });
         } catch {
           // ignore
         }
@@ -754,6 +792,7 @@ export class ProxyClientService extends EventEmitter {
 
       child.once('exit', () => {
         clearTimeout(timeout);
+        pxlog('stopChild:exited', { pid: child.pid ?? null });
         resolve();
       });
 
@@ -764,6 +803,10 @@ export class ProxyClientService extends EventEmitter {
         resolve();
       }
     });
+    // PART 0 FIX: clear the pidfile ONLY after the child has actually exited (or
+    // been force-killed). Previously this ran before the kill, so a crash mid-stop
+    // left an orphaned sing-box with no pidfile for the next launch to reclaim.
+    this.clearPidFile();
   }
 
   private clearRestartTimer(): void {
