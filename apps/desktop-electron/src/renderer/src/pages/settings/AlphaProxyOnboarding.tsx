@@ -7,12 +7,22 @@ type Readiness = 'starting' | 'checking' | 'ready' | 'error';
 function deriveReadiness(d: ProxyDiagnosticsSnapshot | null): Readiness {
   if (!d) return 'starting';
   if (d.status === 'ERROR') return 'error';
-  if (d.status === 'CONNECTED') return d.egress?.remoteEgressOk ? 'ready' : 'checking';
+  if (d.status === 'CONNECTED') {
+    // P0 FIX: distinguish "egress probe not finished yet" (egress == null) from
+    // "egress probe finished and FAILED" (egress present, remoteEgressOk false).
+    // The old code returned 'checking' for both → infinite "Проверка соединения"
+    // whenever the tunnel was up locally but traffic could not actually egress.
+    if (!d.egress) return 'checking';
+    return d.egress.remoteEgressOk ? 'ready' : 'error';
+  }
   return 'starting'; // CONNECTING / RECONNECTING / DISCONNECTED
 }
 function readinessError(d: ProxyDiagnosticsSnapshot | null): string {
   if (d?.status === 'CONNECTED' && d.egress && !d.egress.remoteEgressOk) {
-    return 'Соединение не прошло проверку.';
+    return 'Соединение не прошло проверку. Сайты могут не открываться через Alpha Proxy.';
+  }
+  if (d?.status === 'CONNECTED' && !d.egress) {
+    return 'Проверка соединения не завершилась вовремя. Попробуйте снова.';
   }
   switch (d?.errorReason) {
     case 'REMOTE_PROFILE_MISSING':
@@ -37,6 +47,7 @@ export function AlphaProxyOnboarding() {
   const [diag, setDiag] = useState<ProxyDiagnosticsSnapshot | null>(null);
   const [copied, setCopied] = useState(false);
   const healedRef = useRef(false);
+  const checkingSinceRef = useRef<number | null>(null);
 
   useEffect(() => {
     void window.alpha.activation.getState().then((s) => {
@@ -191,7 +202,15 @@ export function AlphaProxyOnboarding() {
 
       {/* PART 3: profile present → show HONEST readiness from the transport. */}
       {activated && (() => {
-        const r = deriveReadiness(diag);
+        let r = deriveReadiness(diag);
+        // Watchdog: never spin on "checking" forever. If the egress probe hasn't
+        // resolved within 20s (e.g. a hung request), surface the error state.
+        if (r === 'checking') {
+          if (checkingSinceRef.current == null) checkingSinceRef.current = Date.now();
+          else if (Date.now() - checkingSinceRef.current > 20_000) r = 'error';
+        } else {
+          checkingSinceRef.current = null;
+        }
         if (r === 'ready') {
           return (
             <div className="onb">

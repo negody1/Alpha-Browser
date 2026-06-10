@@ -5,7 +5,21 @@ import type { OverlayKind } from './OverlayWindowManager';
 
 const isDev = !app.isPackaged;
 
-const OVERLAY_HTML_MARKERS = ['OverlayRoot', '/overlay/main.tsx', 'data-overlay-root'];
+// P0 FIX: the previous markers only existed in the DEV source HTML
+// (`/overlay/main.tsx`) or at React runtime (`OverlayRoot` / `data-overlay-root`).
+// The PRODUCTION build's static HTML is `<div id="root">` + a hashed bundle, so it
+// matched NONE of them → verifyOverlayPageUrl() threw on the first overlay open →
+// EVERY popup and panel failed in packaged builds (route/adblock/downloads, etc).
+// `<title>Alpha Overlay</title>` and the `assets/overlay-*` bundle name are present
+// in BOTH dev and prod overlay HTML and absent from the main shell, so they are the
+// stable, build-independent markers.
+const OVERLAY_HTML_MARKERS = [
+  'Alpha Overlay',
+  'assets/overlay-',
+  'OverlayRoot',
+  '/overlay/main.tsx',
+  'data-overlay-root',
+];
 const MAIN_SHELL_MARKERS = ['BrowserShell', 'shell-root', '/src/main.tsx'];
 
 let overlayEntryVerified = false;

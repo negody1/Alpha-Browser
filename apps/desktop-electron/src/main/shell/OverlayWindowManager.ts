@@ -4,6 +4,13 @@ import type { AdblockService } from '../adblock/AdblockService';
 import type { TabManager } from '../tabs/TabManager';
 import { resolveOverlayPageUrl, verifyOverlayPageUrl } from './overlay-url';
 
+/** PART 5: dev-guarded overlay lifecycle logging (`ALPHA_DEBUG_OVERLAY=1`). */
+const OVERLAY_DEBUG = process.env.ALPHA_DEBUG_OVERLAY === '1';
+function ovlog(label: string, extra?: Record<string, unknown>): void {
+  if (!OVERLAY_DEBUG) return;
+  console.log(`[alpha][overlay-dbg] ${label}`, extra ? JSON.stringify(extra) : '');
+}
+
 export type OverlayPanelKind =
   | 'groups-panel'
   | 'bookmarks-panel'
@@ -537,9 +544,17 @@ export class OverlayWindowManager {
       this.onScreenShareDismiss?.(id);
     }
 
+    ovlog('openPopup:ipc-received', { kind, clientX, clientY });
     const win = await this.ensurePopupLoaded();
     if (!win) {
       console.warn('[alpha][overlay] openPopup — popup window unavailable');
+      ovlog('openPopup:popup-unavailable-fallback', { kind });
+      // Fallback: never leave the user with a dead control. Route/adblock fall
+      // back to the routing settings panel so the equivalent controls are still
+      // reachable even if the popup window could not be created/loaded.
+      if (kind === 'route-popup' || kind === 'adblock-popup') {
+        void this.openPanel('routing-panel');
+      }
       return;
     }
 
@@ -563,7 +578,7 @@ export class OverlayWindowManager {
       height: size.height,
     };
 
-    console.log('[alpha][overlay] popup bounds', { kind, ...bounds });
+    ovlog('openPopup:bounds', { kind, ...bounds });
 
     win.setBounds(bounds);
     this.sendState(win, { kind, payload });
@@ -571,7 +586,7 @@ export class OverlayWindowManager {
     win.setAlwaysOnTop(true, 'pop-up-menu');
     win.show();
     win.focus();
-    console.log('[alpha][overlay] popup show', { kind });
+    ovlog('openPopup:show', { kind });
   }
 
   private popupSize(

@@ -46,16 +46,19 @@ export function ProxySection() {
     }
   }
 
+  // NB: 'CONNECTED' here means the local transport (sing-box + SOCKS) started —
+  // NOT that traffic actually egresses. Egress is a separate row below, so we
+  // label this "Транспорт запущен" to avoid implying the proxy is fully ready.
   const statusLabel =
     proxyState.status === 'CONNECTED'
-      ? 'Подключено'
+      ? 'Транспорт запущен'
       : proxyState.status === 'CONNECTING'
-        ? 'Подключение…'
+        ? 'Запуск транспорта…'
         : proxyState.status === 'RECONNECTING'
           ? 'Переподключение…'
           : proxyState.status === 'ERROR'
             ? proxyState.errorReason === 'BINARY_MISSING'
-              ? 'sing-box не найден'
+              ? 'Компонент Alpha Proxy не найден'
               : 'Ошибка'
             : 'Отключено';
 
