@@ -3,123 +3,226 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Alpha Proxy — доступ</title>
+<title>Alpha Browser — доступ к Alpha Proxy</title>
 <style>
-  :root { color-scheme: dark; }
-  body { margin:0; min-height:100vh; background:#0b0d12; color:#e6e8ee;
-    font:15px/1.55 system-ui,Segoe UI,Roboto,sans-serif; padding:32px 16px 48px; }
-  .wrap { width:min(720px,100%); margin:0 auto; display:flex; flex-direction:column; gap:20px; }
-  .card { background:#141821; border:1px solid rgba(255,255,255,.1); border-radius:16px; padding:24px 28px;
-    box-shadow:0 20px 60px rgba(0,0,0,.35); }
-  h1 { margin:0 0 8px; font-size:22px; }
-  h2 { margin:0 0 10px; font-size:17px; }
-  p { color:rgba(255,255,255,.68); margin:0 0 14px; }
-  p:last-child { margin-bottom:0; }
-  input[type=email] { width:100%; box-sizing:border-box; padding:11px 14px; border-radius:10px;
-    border:1px solid rgba(255,255,255,.14); background:#0d1019; color:#fff; font-size:15px; }
-  button, .btn { display:inline-block; margin-top:12px; padding:11px 18px; border:none; border-radius:10px; cursor:pointer;
-    background:linear-gradient(135deg,#7a4dff,#9b6cff); color:#fff; font-weight:600; font-size:15px; text-decoration:none; }
-  .msg { margin-top:14px; font-size:14px; color:#a9f0c0; min-height:20px; line-height:1.5; }
-  .msg.err { color:#ff9aa9; }
-  ol { margin:0; padding-left:22px; color:rgba(255,255,255,.75); }
-  ol li { margin:6px 0; }
-  .hp { position:absolute; left:-9999px; width:1px; height:1px; opacity:0; pointer-events:none; }
-  .note { font-size:14px; color:rgba(255,255,255,.5); margin-top:10px; }
+  :root{
+    color-scheme: dark;
+    --bg:#0b0d12; --bg2:#0d1019; --card:#141821; --card2:#171c27;
+    --line:rgba(255,255,255,.10); --line2:rgba(255,255,255,.06);
+    --tx:#e9ebf2; --mut:rgba(233,235,242,.62); --mut2:rgba(233,235,242,.42);
+    --acc:#9b6cff; --acc2:#7a4dff; --ok:#8be0a8; --warn:#ffcf8b; --bad:#ff9aa9;
+    --r:16px; --r-sm:11px; --gap:18px;
+    --grad:linear-gradient(135deg,#7a4dff,#9b6cff);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1100px 600px at 50% -10%,rgba(122,77,255,.16),transparent 60%),var(--bg);
+    color:var(--tx);font:15px/1.6 system-ui,'Segoe UI',Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{width:min(960px,calc(100% - 32px));margin:0 auto;padding:28px 0 64px}
+  a{color:var(--acc);text-decoration:none}
+  h1,h2,h3{margin:0;letter-spacing:-.02em}
+  .muted{color:var(--mut)} .muted2{color:var(--mut2)}
+  /* buttons */
+  .btn{display:inline-flex;align-items:center;gap:8px;justify-content:center;padding:12px 20px;border-radius:12px;
+    border:1px solid var(--line);background:var(--card2);color:var(--tx);font-weight:600;font-size:15px;cursor:pointer;
+    transition:.15s transform,.15s border-color,.15s background;text-decoration:none}
+  .btn:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.2)}
+  .btn-primary{background:var(--grad);border:none;box-shadow:0 8px 24px rgba(122,77,255,.32)}
+  .btn-lg{padding:14px 26px;font-size:16px}
+  /* cards / sections */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:24px 26px}
+  .section{margin-top:34px}
+  .eyebrow{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--acc);margin-bottom:10px}
+  .section h2{font-size:22px;margin-bottom:6px}
+  .section>.muted{margin:0 0 16px}
+  /* hero */
+  .hero{position:relative;text-align:center;padding:44px 26px 34px;overflow:hidden}
+  .logo{width:60px;height:60px;border-radius:18px;background:var(--grad);display:inline-flex;align-items:center;justify-content:center;
+    font-weight:800;font-size:26px;margin-bottom:18px;box-shadow:0 10px 30px rgba(122,77,255,.4)}
+  .hero h1{font-size:40px;line-height:1.1}
+  .hero p{font-size:18px;color:var(--mut);margin:12px auto 24px;max-width:560px}
+  .hero-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  .pill{display:inline-flex;align-items:center;gap:7px;margin-top:20px;padding:6px 14px;border-radius:999px;
+    border:1px solid var(--line);background:rgba(255,255,255,.03);font-size:13px;color:var(--mut)}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--ok)}
+  /* timeline */
+  .steps{display:grid;gap:10px}
+  .step{display:flex;gap:16px;align-items:flex-start;padding:14px 16px;border:1px solid var(--line2);border-radius:var(--r-sm);background:var(--bg2)}
+  .step .n{flex:0 0 30px;height:30px;border-radius:50%;background:var(--grad);display:flex;align-items:center;justify-content:center;
+    font-weight:700;font-size:14px}
+  .step .t{font-weight:600}
+  .step .d{color:var(--mut);font-size:14px}
+  /* download */
+  .dl{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+  .dl-meta{display:flex;gap:22px;flex-wrap:wrap;margin-top:14px}
+  .meta{display:flex;flex-direction:column}
+  .meta b{font-size:16px} .meta span{font-size:12px;color:var(--mut2);text-transform:uppercase;letter-spacing:.08em}
+  /* update grid */
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .mini{border:1px solid var(--line2);border-radius:var(--r-sm);padding:14px 16px;background:var(--bg2)}
+  .mini h3{font-size:15px;margin-bottom:4px} .mini p{margin:0;font-size:14px;color:var(--mut)}
+  /* form */
+  input[type=email]{width:100%;padding:13px 15px;border-radius:12px;border:1px solid var(--line);background:var(--bg2);
+    color:#fff;font-size:15px;outline:none;transition:.15s border-color}
+  input[type=email]:focus{border-color:var(--acc2)}
+  .form-row{display:flex;gap:10px;flex-wrap:wrap}
+  .form-row .btn{flex:0 0 auto}
+  .form-row input{flex:1;min-width:220px}
+  .hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none}
+  .msg{margin-top:14px;border-radius:12px;padding:0;max-height:0;overflow:hidden;transition:.25s;border:1px solid transparent}
+  .msg.show{max-height:420px;padding:16px 18px}
+  .msg.ok{background:rgba(139,224,168,.08);border-color:rgba(139,224,168,.3)}
+  .msg.err{background:rgba(255,154,169,.08);border-color:rgba(255,154,169,.3)}
+  .msg h3{font-size:16px;margin-bottom:8px;color:var(--ok)} .msg.err h3{color:var(--bad)}
+  .msg ol{margin:8px 0 0;padding-left:20px;color:var(--mut)} .msg li{margin:5px 0}
+  .foot{margin-top:40px;text-align:center;color:var(--mut2);font-size:13px}
+  @media(max-width:640px){.hero h1{font-size:32px}.grid2{grid-template-columns:1fr}.dl{flex-direction:column;align-items:flex-start}}
 </style>
 </head>
 <body>
-  <div class="wrap">
+<div class="wrap">
+
+  <!-- BLOCK 1 — HERO -->
+  <div class="card hero">
+    <div class="logo">α</div>
+    <h1>Alpha Browser</h1>
+    <p>Браузер с интегрированным Alpha Proxy — защищённый доступ к сайтам на отдельных вкладках.</p>
+    <div class="hero-actions">
+      <a class="btn btn-primary btn-lg" id="heroDownload" href="#download">Скачать браузер</a>
+      <a class="btn btn-lg" href="#request">Подать заявку</a>
+    </div>
+    <span class="pill"><span class="dot"></span> <span id="heroVersion">Версия 0.1.0</span></span>
+  </div>
+
+  <!-- BLOCK 2 — КАК НАЧАТЬ -->
+  <div class="section">
+    <div class="eyebrow">Как начать</div>
+    <h2>Семь шагов до Alpha Proxy</h2>
+    <p class="muted">Весь путь — от установки до готового подключения.</p>
+    <div class="steps">
+      <div class="step"><div class="n">1</div><div><div class="t">Скачайте Alpha Browser</div><div class="d">Установщик публикуется через GitHub Releases.</div></div></div>
+      <div class="step"><div class="n">2</div><div><div class="t">Установите браузер</div><div class="d">Запустите установщик и откройте Alpha Browser.</div></div></div>
+      <div class="step"><div class="n">3</div><div><div class="t">Отправьте заявку</div><div class="d">Укажите email на этой странице, в форме ниже.</div></div></div>
+      <div class="step"><div class="n">4</div><div><div class="t">Дождитесь подтверждения</div><div class="d">Администратор проверит и одобрит заявку.</div></div></div>
+      <div class="step"><div class="n">5</div><div><div class="t">Получите код активации</div><div class="d">Одноразовый код придёт от администратора.</div></div></div>
+      <div class="step"><div class="n">6</div><div><div class="t">Введите код в браузере</div><div class="d">Настройки → Alpha Proxy → введите email и код.</div></div></div>
+      <div class="step"><div class="n">7</div><div><div class="t">Alpha Proxy готов к работе</div><div class="d">Откройте сайты через PROXY-вкладки.</div></div></div>
+    </div>
+  </div>
+
+  <!-- BLOCK 3 — СКАЧАТЬ -->
+  <div class="section" id="download">
+    <div class="eyebrow">Загрузка</div>
+    <h2>Скачать Alpha Browser</h2>
+    <p class="muted">Браузер распространяется через GitHub Releases — установщик скачивается напрямую с GitHub, чтобы не нагружать сервис.</p>
     <div class="card">
-      <h1>Доступ к Alpha Proxy</h1>
-      <p>Введите email, чтобы отправить заявку на доступ. После одобрения администратор выдаст код активации для Alpha Browser.</p>
+      <div class="dl">
+        <div>
+          <h3 style="font-size:18px">Установщик для Windows</h3>
+          <div class="muted2" style="font-size:14px;margin-top:4px">AlphaBrowserSetup.exe</div>
+        </div>
+        <a class="btn btn-primary btn-lg" id="downloadBtn" href="#" target="_blank" rel="noopener noreferrer">Скачать Alpha Browser</a>
+      </div>
+      <div class="dl-meta" id="dlMeta" style="display:none">
+        <div class="meta"><b id="mVer">—</b><span>Версия</span></div>
+        <div class="meta"><b id="mSize">—</b><span>Размер</span></div>
+        <div class="meta"><b id="mDate">—</b><span>Дата релиза</span></div>
+      </div>
+      <p class="muted2" id="dlNote" style="font-size:13px;margin:14px 0 0">Если релиз ещё не опубликован, кнопка ведёт на страницу релизов GitHub.</p>
+    </div>
+  </div>
+
+  <!-- BLOCK 4 — ОБНОВЛЕНИЯ -->
+  <div class="section">
+    <div class="eyebrow">Обновления</div>
+    <h2>Как работают обновления</h2>
+    <p class="muted">Просто и без переустановки «с нуля».</p>
+    <div class="card">
+      <div class="grid2">
+        <div class="mini"><h3>1 · Автопроверка</h3><p>Браузер сам проверяет новые версии на GitHub.</p></div>
+        <div class="mini"><h3>2 · Уведомление</h3><p>Когда выходит новая версия — вы получаете уведомление в браузере.</p></div>
+        <div class="mini"><h3>3 · Установка поверх</h3><p>Скачиваете новый установщик и запускаете поверх текущей версии.</p></div>
+        <div class="mini"><h3>4 · Данные сохраняются</h3><p>Профиль, настройки и активация остаются на месте — переустановка не нужна.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BLOCK 5 — ЗАЯВКА -->
+  <div class="section" id="request">
+    <div class="eyebrow">Доступ</div>
+    <h2>Заявка на доступ к Alpha Proxy</h2>
+    <p class="muted">Укажите email, который будет одобрен для доступа. После подтверждения вы получите код активации.</p>
+    <div class="card">
       <form id="form" autocomplete="on">
-        <input id="email" name="email" type="email" placeholder="you@example.com" autocomplete="email" required />
-        <label class="hp" aria-hidden="true">Website<input id="website" name="website" type="text" tabindex="-1" autocomplete="off" /></label>
-        <button type="submit" id="submit">Отправить заявку</button>
+        <div class="form-row">
+          <input id="email" name="email" type="email" placeholder="you@example.com" autocomplete="email" required />
+          <label class="hp" aria-hidden="true">Website<input id="website" name="website" type="text" tabindex="-1" autocomplete="off" /></label>
+          <button type="submit" class="btn btn-primary" id="submit">Отправить заявку</button>
+        </div>
       </form>
       <div class="msg" id="msg"></div>
     </div>
-
-    <div class="card">
-      <h2>Что делать после отправки заявки?</h2>
-      <ol>
-        <li>Дождитесь подтверждения от администратора.</li>
-        <li>После одобрения вам передадут код активации.</li>
-        <li>Откройте Alpha Browser.</li>
-        <li>Перейдите в <strong>Настройки → Alpha Proxy</strong>.</li>
-        <li>Введите email и код.</li>
-        <li>Дождитесь статуса <strong>«Alpha Proxy готов к работе»</strong>.</li>
-      </ol>
-      <p class="note">Если код не пришёл: код выдаётся администратором после одобрения заявки. Если заявка уже одобрена, обратитесь к администратору.</p>
-    </div>
-
-    <div class="card">
-      <h2>Скачать Alpha Browser</h2>
-      <p>Alpha Browser распространяется через GitHub Releases. Это снижает нагрузку на сервер Alpha Access: установщик скачивается напрямую с GitHub, а 3d.negody.ru отвечает только за регистрацию и выдачу доступа.</p>
-      <a class="btn" id="download" href="#" rel="noopener noreferrer" target="_blank">Скачать Alpha Browser</a>
-      <p class="note">Если релиз ещё не опубликован, установщик будет доступен после публикации первой версии.</p>
-    </div>
-
-    <div class="card">
-      <h2>Как работают обновления</h2>
-      <p>Alpha Browser сам проверяет GitHub Releases. Когда появляется новая версия, в браузере открывается уведомление с описанием изменений и кнопкой для перехода на страницу релиза. Обновление устанавливается вручную: пользователь скачивает новый установщик с GitHub и запускает его.</p>
-    </div>
-
-    <div class="card">
-      <h2>Как получить доступ</h2>
-      <ol>
-        <li>Скачайте и установите Alpha Browser.</li>
-        <li>Введите email на этой странице.</li>
-        <li>Дождитесь подтверждения заявки.</li>
-        <li>Получите код активации от администратора.</li>
-        <li>Откройте Alpha Browser.</li>
-        <li>Перейдите в настройки Alpha Proxy.</li>
-        <li>Введите email и код активации.</li>
-        <li>После активации Alpha Proxy подключится автоматически.</li>
-      </ol>
-    </div>
   </div>
+
+  <div class="foot">Alpha Browser · доступ к Alpha Proxy выдаётся администратором</div>
+</div>
+
 <script>
   const $ = (id) => document.getElementById(id);
-  const SUCCESS_MSG = 'Заявка отправлена. Теперь дождитесь подтверждения администратора. После одобрения вы получите код активации. Скачайте Alpha Browser через GitHub Releases и введите код в настройках Alpha Proxy.';
+  const REPO = 'negody1/Alpha-Browser';
 
-  async function loadConfig() {
-    try {
-      const r = await fetch('/api/alpha/public-info');
-      const j = await r.json();
-      if (j.githubReleasesUrl) $('download').href = j.githubReleasesUrl;
-    } catch { /* keep placeholder href */ }
-  }
-  loadConfig();
+  function fmtSize(b){ if(!b) return '—'; const mb=b/1048576; return (mb>=1?mb.toFixed(1)+' МБ':(b/1024).toFixed(0)+' КБ'); }
+  function fmtDate(s){ try{ return new Date(s).toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'}); }catch{ return '—'; } }
 
-  $('form').addEventListener('submit', async (e) => {
+  // Releases URL from the service (no secrets); used as a safe fallback.
+  let releasesUrl = 'https://github.com/'+REPO+'/releases/latest';
+  (async()=>{ try{ const j=await (await fetch('/api/alpha/public-info')).json(); if(j.githubReleasesUrl){ releasesUrl=j.githubReleasesUrl; } }catch{}
+    $('downloadBtn').href = releasesUrl; $('heroDownload').href = '#download';
+  })();
+
+  // Version / size / date pulled directly from GitHub's public API (no backend involved).
+  (async()=>{
+    try{
+      const r = await fetch('https://api.github.com/repos/'+REPO+'/releases/latest',{headers:{Accept:'application/vnd.github+json'}});
+      if(!r.ok) return;
+      const d = await r.json();
+      if(d.tag_name){ $('heroVersion').textContent='Версия '+String(d.tag_name).replace(/^v/i,''); $('mVer').textContent=String(d.tag_name).replace(/^v/i,''); }
+      const asset = (d.assets||[]).find(a=>/AlphaBrowserSetup\.exe$/i.test(a.name)) || (d.assets||[])[0];
+      if(asset){ $('downloadBtn').href=asset.browser_download_url; $('mSize').textContent=fmtSize(asset.size); }
+      if(d.published_at){ $('mDate').textContent=fmtDate(d.published_at); }
+      if(d.tag_name){ $('dlMeta').style.display='flex'; $('dlNote').style.display='none'; }
+    }catch{ /* keep button + fallback */ }
+  })();
+
+  const SUCCESS = {
+    h:'Заявка отправлена',
+    items:[
+      'Администратор получит вашу заявку и проверит её.',
+      'После одобрения вам передадут одноразовый код активации.',
+      'Откройте Alpha Browser → Настройки → Alpha Proxy.',
+      'Введите этот email и код активации.',
+      'Дождитесь статуса «Alpha Proxy готов к работе».'
+    ]
+  };
+  $('form').addEventListener('submit', async (e)=>{
     e.preventDefault();
-    const email = $('email').value.trim();
-    $('msg').className = 'msg';
-    $('msg').textContent = '';
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-      $('msg').className = 'msg err';
-      $('msg').textContent = 'Введите корректный email.';
-      return;
+    const email=$('email').value.trim();
+    const box=$('msg'); box.className='msg';
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){
+      box.className='msg show err'; box.innerHTML='<h3>Неверный email</h3><p class="muted">Проверьте адрес и попробуйте снова.</p>'; return;
     }
-    try {
-      const r = await fetch('/api/alpha/register', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ email, website: $('website').value }),
-      });
-      const j = await r.json();
-      if (j.status === 'submitted') {
-        $('msg').textContent = SUCCESS_MSG;
+    $('submit').disabled=true; $('submit').textContent='Отправка…';
+    try{
+      const r=await fetch('/api/alpha/register',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email,website:$('website').value})});
+      const j=await r.json();
+      if(j.status==='submitted'){
+        box.className='msg show ok';
+        box.innerHTML='<h3>'+SUCCESS.h+'</h3><p class="muted">Что дальше:</p><ol>'+SUCCESS.items.map(i=>'<li>'+i+'</li>').join('')+'</ol>';
         $('form').reset();
-      } else {
-        $('msg').className = 'msg err';
-        $('msg').textContent = 'Не удалось отправить заявку. Попробуйте позже.';
+      }else{
+        box.className='msg show err'; box.innerHTML='<h3>Не удалось отправить</h3><p class="muted">Попробуйте позже.</p>';
       }
-    } catch {
-      $('msg').className = 'msg err';
-      $('msg').textContent = 'Ошибка сети.';
-    }
+    }catch{ box.className='msg show err'; box.innerHTML='<h3>Ошибка сети</h3><p class="muted">Проверьте подключение и попробуйте снова.</p>'; }
+    finally{ $('submit').disabled=false; $('submit').textContent='Отправить заявку'; }
   });
 </script>
 </body>

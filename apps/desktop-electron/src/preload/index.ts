@@ -16,6 +16,7 @@ import type {
   PermissionSiteEntry,
   UpdateNotice,
   ProxyDiagnosticsSnapshot,
+  AccessDetails,
   ActivationState,
 } from '@alpha/shared-types';
 
@@ -192,6 +193,7 @@ export interface AlphaApi {
     register: (email: string) => Promise<ActivationState | null>;
     activate: (email: string, code: string) => Promise<ActivationState | null>;
     checkStatus: () => Promise<ActivationState | null>;
+    getDetails: () => Promise<AccessDetails | null>;
   };
   passwords: {
     isAvailable: () => Promise<boolean>;
@@ -493,6 +495,7 @@ const alphaApi: AlphaApi = {
     activate: (email, code) =>
       ipcRenderer.invoke('activation:activate', { email, code }) as Promise<ActivationState | null>,
     checkStatus: () => ipcRenderer.invoke('activation:checkStatus') as Promise<ActivationState | null>,
+    getDetails: () => ipcRenderer.invoke('activation:getDetails') as Promise<AccessDetails | null>,
   },
   passwords: {
     isAvailable: () => ipcRenderer.invoke('passwords:isAvailable') as Promise<boolean>,

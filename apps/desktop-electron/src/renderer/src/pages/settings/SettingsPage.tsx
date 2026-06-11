@@ -11,10 +11,12 @@ import {
   Info,
 } from 'lucide-react';
 import { ProxySection } from './ProxySection';
+import { MyAccessSection } from './MyAccessSection';
 import { PasswordsSection } from './PasswordsSection';
 import { SitePermissionsSection } from './SitePermissionsSection';
 
 type SectionId =
+  | 'my-access'
   | 'general'
   | 'proxy'
   | 'adblock'
@@ -33,6 +35,13 @@ interface SectionDef {
 }
 
 const SECTIONS: SectionDef[] = [
+  {
+    id: 'my-access',
+    label: 'Мой доступ',
+    description: 'Статус доступа, профиль и версия Alpha Browser',
+    icon: ShieldCheck,
+    keywords: ['доступ', 'access', 'мой доступ', 'статус', 'профиль', 'активация', 'alpha proxy'],
+  },
   {
     id: 'general',
     label: 'Общие',
@@ -172,6 +181,7 @@ export function SettingsPage() {
               <h1>{active.label}</h1>
               <p>{active.description}</p>
             </div>
+            {section === 'my-access' && <MyAccessSection />}
             {section === 'general' && <GeneralSection />}
             {section === 'proxy' && <ProxySection />}
             {section === 'adblock' && <AdblockSection />}

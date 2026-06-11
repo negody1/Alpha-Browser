@@ -1,9 +1,9 @@
 import { app } from 'electron';
-import { randomUUID } from 'node:crypto';
-import { existsSync, readFileSync, writeFileSync, renameSync, mkdirSync, rmSync } from 'node:fs';
+import { randomUUID, createHash } from 'node:crypto';
+import { existsSync, readFileSync, writeFileSync, renameSync, mkdirSync, rmSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import os from 'node:os';
-import type { ActivationState, ActivationStatus } from '@alpha/shared-types';
+import type { ActivationState, ActivationStatus, AccessDetails } from '@alpha/shared-types';
 import { alphaAccessBaseUrl } from '../app-config';
 import type { ProxyClientService } from '../proxy/ProxyClientService';
 
@@ -79,6 +79,34 @@ export class ActivationService {
       hasProfile: existsSync(this.profilePath()),
       error: this.error,
       lastCheckedAt: this.lastCheckedAt,
+    };
+  }
+
+  /**
+   * Read-only, non-secret summary for the "Мой доступ" screen. Exposes the
+   * profile's mtime and a SHORT fingerprint (sha256 prefix) as a "profile
+   * version" — never the profile contents/uuid/keys.
+   */
+  getAccessDetails(): AccessDetails {
+    let profileUpdatedAt: string | null = null;
+    let profileVersion: string | null = null;
+    try {
+      const p = this.profilePath();
+      if (existsSync(p)) {
+        profileUpdatedAt = statSync(p).mtime.toISOString();
+        profileVersion = createHash('sha256').update(readFileSync(p)).digest('hex').slice(0, 8);
+      }
+    } catch {
+      /* best effort */
+    }
+    return {
+      status: this.status,
+      email: this.email,
+      hasProfile: existsSync(this.profilePath()),
+      lastCheckedAt: this.lastCheckedAt,
+      profileUpdatedAt,
+      profileVersion,
+      browserVersion: this.version(),
     };
   }
 

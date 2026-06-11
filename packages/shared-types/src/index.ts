@@ -128,6 +128,20 @@ export interface ActivationState {
   lastCheckedAt: string | null;
 }
 
+/** Read-only, non-secret access summary for the "Мой доступ" screen. */
+export interface AccessDetails {
+  status: ActivationStatus;
+  email: string | null;
+  hasProfile: boolean;
+  lastCheckedAt: string | null;
+  /** ISO mtime of the local profile (proxy "activated/updated" time), or null. */
+  profileUpdatedAt: string | null;
+  /** Short non-secret fingerprint of the profile (changes when it changes), or null. */
+  profileVersion: string | null;
+  /** Running Alpha Browser version. */
+  browserVersion: string;
+}
+
 /** PHASE 4: sanitized proxy diagnostics surfaced to the renderer (no secrets). */
 export interface ProxyDiagnosticsSnapshot {
   status: ProxyConnectionStatus;

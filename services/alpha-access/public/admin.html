@@ -3,161 +3,267 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Alpha Access — admin</title>
+<title>Alpha Access — панель управления</title>
 <style>
-  :root { color-scheme: dark; }
-  body { margin:0; background:#0b0d12; color:#e6e8ee; font:14px/1.5 system-ui,Segoe UI,Roboto,sans-serif; padding:24px; }
-  h1 { font-size:18px; margin:0 0 12px; }
-  .row { display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap; align-items:center; }
-  input { padding:8px 10px; border-radius:8px; border:1px solid rgba(255,255,255,.14); background:#0d1019; color:#fff; }
-  button { padding:7px 12px; border:none; border-radius:8px; cursor:pointer; background:#26304a; color:#fff; }
-  button.p { background:linear-gradient(135deg,#7a4dff,#9b6cff); } button.d { background:#5a2330; }
-  table { width:100%; border-collapse:collapse; font-size:13px; } th,td { text-align:left; padding:8px 10px; border-bottom:1px solid rgba(255,255,255,.08); }
-  th { color:rgba(255,255,255,.5); } .s { padding:2px 8px; border-radius:999px; font-size:12px; }
-  .s.pending{background:#4a3a14;color:#ffcf8b}.s.approved{background:#13402a;color:#8be0a8}
-  .s.active{background:#1a3352;color:#8ec5ff}.s.denied,.s.revoked{background:#4a1722;color:#ff9aa9}
-  .muted { color:rgba(255,255,255,.45); } .card{border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:18px;max-width:360px;background:#141821}
-  .hide{display:none} .err{color:#ff9aa9;min-height:18px}
-  details{margin-top:18px} summary{cursor:pointer;color:rgba(255,255,255,.6)}
+  :root{
+    color-scheme: dark;
+    --bg:#0b0d12; --bg2:#0d1019; --card:#141821; --card2:#171c27;
+    --line:rgba(255,255,255,.10); --line2:rgba(255,255,255,.06);
+    --tx:#e9ebf2; --mut:rgba(233,235,242,.6); --mut2:rgba(233,235,242,.4);
+    --acc:#9b6cff; --acc2:#7a4dff; --grad:linear-gradient(135deg,#7a4dff,#9b6cff);
+    --ok:#8be0a8; --warn:#ffcf8b; --bad:#ff9aa9; --info:#8bc4e0;
+    --r:14px; --r-sm:10px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.55 system-ui,'Segoe UI',Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{width:min(1080px,calc(100% - 32px));margin:0 auto;padding:22px 0 56px}
+  h1,h2,h3{margin:0;letter-spacing:-.01em}
+  .muted{color:var(--mut)} .hide{display:none!important}
+  input{padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg2);color:#fff;font-size:14px;outline:none}
+  input:focus{border-color:var(--acc2)}
+  .btn{display:inline-flex;align-items:center;gap:7px;justify-content:center;padding:9px 15px;border-radius:10px;border:1px solid var(--line);
+    background:var(--card2);color:var(--tx);font-weight:600;font-size:14px;cursor:pointer;transition:.15s}
+  .btn:hover{border-color:rgba(255,255,255,.2)} .btn:disabled{opacity:.5;cursor:default}
+  .btn.p{background:var(--grad);border:none} .btn.d{background:#3a2230;border-color:rgba(255,154,169,.25);color:#ffc2cc}
+  .btn.sm{padding:6px 11px;font-size:13px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px}
+  .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .err{color:var(--bad);min-height:18px;font-size:13px}
+  .logo{width:34px;height:34px;border-radius:10px;background:var(--grad);display:inline-flex;align-items:center;justify-content:center;font-weight:800}
+  /* topbar */
+  .top{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+  .top .sp{flex:1}
+  /* KPI */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px}
+  .kpi .v{font-size:28px;font-weight:700;letter-spacing:-.02em} .kpi .l{font-size:13px;color:var(--mut);margin-top:2px}
+  .kpi .bar{height:3px;border-radius:3px;margin-top:12px;background:rgba(255,255,255,.08);overflow:hidden}
+  .kpi .bar i{display:block;height:100%}
+  /* table */
+  .tools{display:flex;gap:10px;align-items:center;margin:0 0 12px}
+  table{width:100%;border-collapse:separate;border-spacing:0}
+  th{text-align:left;padding:10px 12px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut2);font-weight:600}
+  td{padding:12px;border-top:1px solid var(--line2);vertical-align:middle}
+  tr:hover td{background:rgba(255,255,255,.018)}
+  .badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12.5px;font-weight:600}
+  .badge::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor}
+  .b-pending{background:rgba(255,207,139,.12);color:var(--warn)}
+  .b-approved{background:rgba(139,196,224,.12);color:var(--info)}
+  .b-active{background:rgba(139,224,168,.12);color:var(--ok)}
+  .b-revoked,.b-denied{background:rgba(255,154,169,.12);color:var(--bad)}
+  .mono{font-variant-numeric:tabular-nums;color:var(--mut)}
+  .acts{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
+  /* empty state */
+  .empty{text-align:center;padding:54px 20px}
+  .empty .ic{width:64px;height:64px;border-radius:18px;background:rgba(255,255,255,.04);border:1px solid var(--line);
+    display:inline-flex;align-items:center;justify-content:center;font-size:28px;margin-bottom:14px}
+  .empty h3{font-size:18px;margin-bottom:6px} .empty p{color:var(--mut);margin:0 auto;max-width:380px}
+  /* modal */
+  .overlay{position:fixed;inset:0;background:rgba(6,8,13,.66);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;z-index:50}
+  .modal{width:min(440px,calc(100% - 32px));background:var(--card);border:1px solid var(--acc2);border-radius:18px;padding:26px 28px;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+  .modal h3{font-size:19px;margin-bottom:6px}
+  .code{font-size:30px;letter-spacing:3px;font-weight:700;color:#c9b6ff;background:var(--bg2);border:1px solid var(--line);
+    border-radius:12px;padding:16px;text-align:center;margin:16px 0;font-variant-numeric:tabular-nums}
+  .auth{display:flex;align-items:center;justify-content:center;min-height:80vh}
+  .auth .card{width:min(380px,100%)}
+  .auth h2{font-size:20px;margin-bottom:4px}
+  details summary{cursor:pointer;color:var(--mut);padding:6px 0}
+  @media(max-width:720px){.kpis{grid-template-columns:repeat(2,1fr)}.hide-sm{display:none}}
 </style>
 </head>
 <body>
-  <!-- FIRST-RUN SETUP WIZARD (shown only while no admin exists) -->
-  <div id="setup" class="hide">
-    <h1>Alpha Access — первичная настройка</h1>
+<div class="wrap">
+
+  <!-- SETUP WIZARD -->
+  <div id="setup" class="auth hide">
     <div class="card">
-      <p class="muted" style="margin-top:0">Администратор ещё не создан. Задайте учётные данные — мастер откроется только один раз.</p>
-      <div class="row"><input id="su" placeholder="Логин администратора (мин. 3)" autocomplete="username" /></div>
-      <div class="row"><input id="sp" type="password" placeholder="Пароль (мин. 8)" autocomplete="new-password" /></div>
-      <div class="row"><input id="sc" type="password" placeholder="Повторите пароль" autocomplete="new-password" /></div>
-      <div class="row"><button class="p" onclick="setup()">Создать администратора</button><span class="err" id="serr"></span></div>
+      <div class="row" style="margin-bottom:10px"><span class="logo">α</span><h2>Первичная настройка</h2></div>
+      <p class="muted" style="margin:0 0 16px">Администратор ещё не создан. Задайте учётные данные — этот шаг доступен только один раз.</p>
+      <div class="row" style="display:block"><input id="su" placeholder="Логин администратора (мин. 3)" style="width:100%;margin-bottom:10px" autocomplete="username" /></div>
+      <div class="row" style="display:block"><input id="sp" type="password" placeholder="Пароль (мин. 8)" style="width:100%;margin-bottom:10px" autocomplete="new-password" /></div>
+      <div class="row" style="display:block"><input id="sc" type="password" placeholder="Повторите пароль" style="width:100%;margin-bottom:14px" autocomplete="new-password" /></div>
+      <button class="btn p" style="width:100%" onclick="setup()">Создать администратора</button>
+      <div class="err" id="serr" style="margin-top:8px"></div>
     </div>
   </div>
 
   <!-- LOGIN -->
-  <div id="login" class="hide">
-    <h1>Alpha Access — вход</h1>
+  <div id="login" class="auth hide">
     <div class="card">
-      <div class="row"><input id="lu" placeholder="Логин" autocomplete="username" /></div>
-      <div class="row"><input id="lp" type="password" placeholder="Пароль" autocomplete="current-password" /></div>
-      <div class="row"><button class="p" onclick="login()">Войти</button><span class="err" id="lerr"></span></div>
+      <div class="row" style="margin-bottom:10px"><span class="logo">α</span><h2>Alpha Access</h2></div>
+      <p class="muted" style="margin:0 0 16px">Вход в панель управления.</p>
+      <div class="row" style="display:block"><input id="lu" placeholder="Логин" style="width:100%;margin-bottom:10px" autocomplete="username" /></div>
+      <div class="row" style="display:block"><input id="lp" type="password" placeholder="Пароль" style="width:100%;margin-bottom:14px" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter')login()" /></div>
+      <button class="btn p" style="width:100%" onclick="login()">Войти</button>
+      <div class="err" id="lerr" style="margin-top:8px"></div>
     </div>
   </div>
 
   <!-- APP -->
   <div id="app" class="hide">
-    <div class="row">
-      <h1 style="margin:0">Alpha Access — администрирование</h1>
-      <span class="muted" id="who"></span>
-      <input id="filter" placeholder="Поиск по Email" oninput="render()" style="width:220px" />
-      <button onclick="load()">Обновить список</button>
-      <button class="d" onclick="logout()">Выйти</button>
+    <div class="top">
+      <span class="logo">α</span>
+      <div><h1 style="font-size:18px">Alpha Access</h1><div class="muted" style="font-size:12.5px">Панель управления доступом</div></div>
+      <span class="sp"></span>
+      <span class="muted hide-sm" id="who"></span>
+      <button class="btn sm" onclick="load()">Обновить список</button>
+      <button class="btn d sm" onclick="logout()">Выйти</button>
     </div>
-    <p class="muted" style="margin:-4px 0 14px">Как работает доступ: пользователь оставляет email, вы подтверждаете заявку, система выдаёт одноразовый код. Пользователь вводит код в Alpha Browser. После отключения доступ на этом устройстве прекращается.</p>
 
-    <!-- Prominent one-time activation code block (replaces alert) -->
-    <div id="codebox" class="hide" style="border:1px solid #7a4dff; border-radius:14px; padding:16px 18px; margin-bottom:16px; background:#1a1530">
-      <div class="row" style="margin-bottom:6px"><strong style="font-size:16px">Код активации</strong><span class="muted" id="codeEmail"></span></div>
-      <div class="row" style="align-items:center">
-        <code id="codeValue" style="font-size:22px; letter-spacing:2px; background:#0d1019; padding:8px 14px; border-radius:10px; color:#9b6cff"></code>
-        <button class="p" onclick="copyCode()">Скопировать код</button>
-        <span class="muted" id="codeCopied"></span>
-        <button class="d" onclick="$('codebox').classList.add('hide')">Закрыть</button>
+    <!-- KPI -->
+    <div class="kpis">
+      <div class="kpi"><div class="v" id="kTotal">0</div><div class="l">Всего заявок</div><div class="bar"><i style="width:100%;background:var(--acc)"></i></div></div>
+      <div class="kpi"><div class="v" id="kPending" style="color:var(--warn)">0</div><div class="l">Ожидают проверки</div><div class="bar"><i id="kPendingBar" style="background:var(--warn)"></i></div></div>
+      <div class="kpi"><div class="v" id="kActive" style="color:var(--ok)">0</div><div class="l">Активных пользователей</div><div class="bar"><i id="kActiveBar" style="background:var(--ok)"></i></div></div>
+      <div class="kpi"><div class="v" id="kRevoked" style="color:var(--bad)">0</div><div class="l">Отключённых</div><div class="bar"><i id="kRevokedBar" style="background:var(--bad)"></i></div></div>
+    </div>
+
+    <div class="card">
+      <div class="tools">
+        <input id="filter" placeholder="Поиск по Email" oninput="render()" style="flex:1;max-width:280px" />
+        <span class="sp" style="flex:1"></span>
+        <span class="muted" id="count" style="font-size:13px"></span>
       </div>
-      <p class="muted" style="margin:10px 0 0">Код показывается только один раз. Скопируйте его и передайте пользователю. Действует <span id="codeTtl"></span> мин.</p>
+      <div id="tableWrap"></div>
     </div>
 
-    <table><thead><tr><th>Email</th><th>Статус</th><th>Заявка создана</th><th>Одобрено</th><th>Код активации</th><th>Устройства</th><th>Действия</th></tr></thead><tbody id="rows"></tbody></table>
-
-    <details>
+    <details style="margin-top:16px">
       <summary>Настройки администратора</summary>
-      <div class="card" style="margin-top:12px">
-        <div class="row"><input id="cu" placeholder="Новый логин (необязательно)" /></div>
-        <div class="row"><input id="cp" type="password" placeholder="Новый пароль (мин. 6)" /></div>
-        <div class="row"><input id="cc" type="password" placeholder="Текущий пароль" /></div>
-        <div class="row"><button class="p" onclick="changeCreds()">Сохранить</button><span class="err" id="cerr"></span></div>
+      <div class="card" style="margin-top:10px;max-width:420px">
+        <div class="row" style="display:block"><input id="cu" placeholder="Новый логин (необязательно)" style="width:100%;margin-bottom:10px" /></div>
+        <div class="row" style="display:block"><input id="cp" type="password" placeholder="Новый пароль (мин. 8)" style="width:100%;margin-bottom:10px" /></div>
+        <div class="row" style="display:block"><input id="cc" type="password" placeholder="Текущий пароль" style="width:100%;margin-bottom:12px" /></div>
+        <button class="btn p" onclick="changeCreds()">Сохранить</button>
+        <span class="err" id="cerr"></span>
       </div>
     </details>
   </div>
 
+  <!-- CODE MODAL -->
+  <div id="codeModal" class="overlay hide">
+    <div class="modal">
+      <h3>Код активации создан</h3>
+      <p class="muted" style="margin:0">Для <b id="codeEmail"></b>. Код отображается только один раз — скопируйте его сейчас и передайте пользователю.</p>
+      <div class="code" id="codeValue"></div>
+      <div class="row">
+        <button class="btn p" style="flex:1" onclick="copyCode()">Скопировать код</button>
+        <button class="btn" onclick="$('codeModal').classList.add('hide')">Закрыть</button>
+      </div>
+      <p class="muted" id="codeTtl" style="margin:12px 0 0;font-size:13px"></p>
+    </div>
+  </div>
+</div>
+
 <script>
   const $ = (id) => document.getElementById(id);
   let DATA = { requests: [], devices: [] };
-  async function api(path, method='GET', body) {
-    const r = await fetch(path, { method, headers:{'content-type':'application/json'}, credentials:'same-origin', body: body?JSON.stringify(body):undefined });
+
+  async function api(path, method='GET', body){
+    const r = await fetch(path,{method,headers:{'content-type':'application/json'},credentials:'same-origin',body:body?JSON.stringify(body):undefined});
     return { status:r.status, json: await r.json().catch(()=>({})) };
   }
-  function show(which) { for (const id of ['setup','login','app']) $(id).classList.toggle('hide', id !== which); }
-  async function boot() {
+  function show(which){ for(const id of ['setup','login','app']) $(id).classList.toggle('hide', id!==which); }
+
+  async function boot(){
     const st = await api('/api/alpha/admin/setup-status');
-    if (st.status === 200 && st.json.needs_setup) { show('setup'); return; }
+    if(st.status===200 && st.json.needs_setup){ show('setup'); return; }
     const me = await api('/api/alpha/admin/me');
-    if (me.status === 200) { $('who').textContent = me.json.user; show('app'); load(); }
-    else show('login');
+    if(me.status===200){ $('who').textContent = me.json.user; show('app'); load(); } else show('login');
   }
-  async function setup() {
+  async function setup(){
     $('serr').textContent='';
-    const r = await api('/api/alpha/admin/setup','POST',{ user:$('su').value, password:$('sp').value, confirm:$('sc').value });
-    if (r.status === 200) boot();
-    else $('serr').textContent = r.json.error === 'password_mismatch' ? 'Пароли не совпадают'
-      : r.json.error === 'weak_password' ? 'Пароль слишком короткий (мин. 8)'
-      : r.json.error === 'weak_user' ? 'Логин слишком короткий (мин. 3)'
-      : r.json.error === 'already_initialized' ? 'Администратор уже создан' : 'Ошибка';
+    const r = await api('/api/alpha/admin/setup','POST',{user:$('su').value,password:$('sp').value,confirm:$('sc').value});
+    if(r.status===200) boot();
+    else $('serr').textContent = r.json.error==='password_mismatch'?'Пароли не совпадают':r.json.error==='weak_password'?'Пароль слишком короткий (мин. 8)':r.json.error==='weak_user'?'Логин слишком короткий (мин. 3)':r.json.error==='already_initialized'?'Администратор уже создан':'Ошибка';
   }
-  async function login() {
+  async function login(){
     $('lerr').textContent='';
-    const r = await api('/api/alpha/admin/login','POST',{ user:$('lu').value, password:$('lp').value });
-    if (r.status === 200) boot(); else $('lerr').textContent = 'Неверный логин или пароль';
+    const r = await api('/api/alpha/admin/login','POST',{user:$('lu').value,password:$('lp').value});
+    if(r.status===200) boot(); else $('lerr').textContent='Неверный логин или пароль';
   }
-  async function logout() { await api('/api/alpha/admin/logout','POST'); boot(); }
-  async function changeCreds() {
+  async function logout(){ await api('/api/alpha/admin/logout','POST'); boot(); }
+  async function changeCreds(){
     $('cerr').textContent='';
-    const r = await api('/api/alpha/admin/change-credentials','POST',{ new_user:$('cu').value||undefined, new_password:$('cp').value||undefined, current_password:$('cc').value });
-    if (r.status === 200) { alert('Сохранено. Войдите снова.'); boot(); }
-    else $('cerr').textContent = r.json.error === 'wrong_current_password' ? 'Неверный текущий пароль' : (r.json.error === 'weak_credentials' ? 'Пароль слишком короткий' : 'Ошибка');
+    const r = await api('/api/alpha/admin/change-credentials','POST',{new_user:$('cu').value||undefined,new_password:$('cp').value||undefined,current_password:$('cc').value});
+    if(r.status===200){ alert('Сохранено. Войдите снова.'); boot(); }
+    else $('cerr').textContent = r.json.error==='wrong_current_password'?'Неверный текущий пароль':r.json.error==='weak_credentials'?'Пароль слишком короткий':'Ошибка';
   }
-  async function load() { const j = await api('/api/alpha/admin/list'); if (j.status===200){ DATA=j.json; render(); } else boot(); }
-  function statusLabel(r, activeCount) {
-    if (r.status === 'pending') return ['pending', 'Ожидает подтверждения'];
-    if (r.status === 'revoked') return ['revoked', 'Отключён'];
-    if (r.status === 'denied') return ['denied', 'Отклонён'];
-    if (r.status === 'approved' && activeCount > 0) return ['active', 'Активирован'];
-    if (r.status === 'approved') return ['approved', 'Одобрен'];
-    return [r.status, r.status];
+  async function load(){ const j=await api('/api/alpha/admin/list'); if(j.status===200){ DATA=j.json; render(); } else boot(); }
+
+  function statusOf(r, activeCount){
+    if(r.status==='pending') return ['b-pending','Ожидает подтверждения'];
+    if(r.status==='revoked') return ['b-revoked','Отключён'];
+    if(r.status==='denied')  return ['b-denied','Отклонён'];
+    if(r.status==='approved' && activeCount>0) return ['b-active','Активирован'];
+    if(r.status==='approved') return ['b-approved','Одобрен'];
+    return ['b-pending', r.status];
   }
-  function render() {
-    const f = $('filter').value.trim().toLowerCase();
-    const byEmail = {}; for (const d of DATA.devices) (byEmail[d.email_normalized]=byEmail[d.email_normalized]||[]).push(d);
-    $('rows').innerHTML = DATA.requests.filter(r=>!f||r.email_normalized.includes(f)).map(r=>{
-      const devs=(byEmail[r.email_normalized]||[]); const active=devs.filter(d=>d.status==='active').length;
-      const [cls, label] = statusLabel(r, active);
-      return `<tr><td>${r.email_normalized}</td><td><span class="s ${cls}">${label}</span></td>
-        <td class="muted">${(r.created_at||'').slice(0,16).replace('T',' ')}</td><td class="muted">${(r.approved_at||'').slice(0,16).replace('T',' ')}</td>
-        <td>${r.has_code?(r.code_used?'<span class="muted">использован</span>':'выдан'):'—'}</td><td>${active}/${devs.length}</td>
-        <td><button class="p" onclick="approve('${r.email_normalized}')">Одобрить и выдать код</button>
-        <button class="d" onclick="act('deny','${r.email_normalized}')">Отклонить</button>
-        <button class="d" onclick="act('revoke','${r.email_normalized}')">Отключить доступ</button></td></tr>`;
-    }).join('');
+  function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  function dt(s){ return s?esc(String(s).slice(0,16).replace('T',' ')):'—'; }
+
+  function render(){
+    const byEmail={}; for(const d of DATA.devices)(byEmail[d.email_normalized]=byEmail[d.email_normalized]||[]).push(d);
+    // KPIs
+    const total=DATA.requests.length||1;
+    const pending=DATA.requests.filter(r=>r.status==='pending').length;
+    const revoked=DATA.requests.filter(r=>r.status==='revoked'||r.status==='denied').length;
+    const active=DATA.devices.filter(d=>d.status==='active').length;
+    $('kTotal').textContent=DATA.requests.length;
+    $('kPending').textContent=pending; $('kActive').textContent=active; $('kRevoked').textContent=revoked;
+    $('kPendingBar').style.width=(pending/total*100)+'%';
+    $('kActiveBar').style.width=Math.min(100,active/total*100)+'%';
+    $('kRevokedBar').style.width=(revoked/total*100)+'%';
+
+    const f=$('filter').value.trim().toLowerCase();
+    const rows=DATA.requests.filter(r=>!f||r.email_normalized.includes(f));
+    $('count').textContent = rows.length+' из '+DATA.requests.length;
+
+    if(DATA.requests.length===0){
+      $('tableWrap').innerHTML='<div class="empty"><div class="ic">📨</div><h3>Пока нет заявок</h3><p>Когда пользователь отправит заявку на странице доступа, она появится здесь — вы сможете одобрить её и выдать код активации.</p></div>';
+      return;
+    }
+    if(rows.length===0){
+      $('tableWrap').innerHTML='<div class="empty"><div class="ic">🔍</div><h3>Ничего не найдено</h3><p>По запросу «'+esc(f)+'» заявок нет.</p></div>';
+      return;
+    }
+    $('tableWrap').innerHTML =
+      '<table><thead><tr><th>Email</th><th>Статус</th><th class="hide-sm">Заявка создана</th><th class="hide-sm">Одобрено</th><th>Код активации</th><th>Устройства</th><th></th></tr></thead><tbody>'+
+      rows.map(r=>{
+        const devs=byEmail[r.email_normalized]||[]; const act=devs.filter(d=>d.status==='active').length;
+        const [cls,label]=statusOf(r,act);
+        const code = r.has_code?(r.code_used?'<span class="muted">использован</span>':'<span style="color:var(--info)">выдан</span>'):'—';
+        return '<tr><td><b>'+esc(r.email_normalized)+'</b></td>'+
+          '<td><span class="badge '+cls+'">'+label+'</span></td>'+
+          '<td class="mono hide-sm">'+dt(r.created_at)+'</td>'+
+          '<td class="mono hide-sm">'+dt(r.approved_at)+'</td>'+
+          '<td>'+code+'</td>'+
+          '<td class="mono">'+act+'/'+devs.length+'</td>'+
+          '<td><div class="acts">'+
+            '<button class="btn p sm" onclick="approve(\''+esc(r.email_normalized)+'\')">Одобрить и выдать код</button>'+
+            '<button class="btn d sm" onclick="act(\'deny\',\''+esc(r.email_normalized)+'\')">Отклонить</button>'+
+            '<button class="btn d sm" onclick="act(\'revoke\',\''+esc(r.email_normalized)+'\')">Отключить</button>'+
+          '</div></td></tr>';
+      }).join('')+'</tbody></table>';
   }
+
   async function approve(email){
     const j=await api('/api/alpha/admin/approve','POST',{email});
     if(j.json.activation_code){
-      $('codeEmail').textContent = email;
-      $('codeValue').textContent = j.json.activation_code;
-      $('codeTtl').textContent = j.json.ttl_minutes;
-      $('codeCopied').textContent = '';
-      $('codebox').classList.remove('hide');
-      $('codebox').scrollIntoView({ behavior:'smooth', block:'center' });
+      $('codeEmail').textContent=email;
+      $('codeValue').textContent=j.json.activation_code;
+      $('codeTtl').textContent='Код одноразовый, действует '+j.json.ttl_minutes+' мин.';
+      $('codeModal').classList.remove('hide');
     }
     load();
   }
   async function copyCode(){
-    try { await navigator.clipboard.writeText($('codeValue').textContent); $('codeCopied').textContent = 'Скопировано'; }
-    catch { $('codeCopied').textContent = 'Выделите и скопируйте вручную'; }
+    try{ await navigator.clipboard.writeText($('codeValue').textContent); const b=event.target; const t=b.textContent; b.textContent='Скопировано ✓'; setTimeout(()=>b.textContent=t,1500); }
+    catch{ alert('Выделите код и скопируйте вручную.'); }
   }
   async function act(kind,email){
-    const labels = { deny:'Отклонить заявку', revoke:'Отключить доступ' };
-    if (!confirm((labels[kind]||kind) + ' для ' + email + '?')) return;
+    const labels={deny:'Отклонить заявку',revoke:'Отключить доступ'};
+    if(!confirm((labels[kind]||kind)+' для '+email+'?')) return;
     await api('/api/alpha/admin/'+kind,'POST',{email}); load();
   }
   boot();

@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron';
-import type { ActivationState } from '@alpha/shared-types';
+import type { AccessDetails, ActivationState } from '@alpha/shared-types';
 import type { ActivationService } from '../activation/ActivationService';
 
 /**
@@ -25,4 +25,6 @@ export function registerActivationIpc(getService: () => ActivationService | null
   ipcMain.handle('activation:checkStatus', async (): Promise<ActivationState | null> => {
     return (await getService()?.checkStatus()) ?? null;
   });
+
+  ipcMain.handle('activation:getDetails', (): AccessDetails | null => getService()?.getAccessDetails() ?? null);
 }
