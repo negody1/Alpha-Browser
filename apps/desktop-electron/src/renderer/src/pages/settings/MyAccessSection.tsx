@@ -1,6 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { ShieldCheck, RotateCw, DownloadCloud } from 'lucide-react';
+import { ShieldCheck, RotateCw, DownloadCloud, ExternalLink } from 'lucide-react';
 import type { AccessDetails, ProxyDiagnosticsSnapshot, ActivationStatus } from '@alpha/shared-types';
+
+const ACCESS_PAGE_URL = 'https://3d.negody.ru/alpha';
 
 /** Friendly access-status label + tone. */
 function accessLabel(s: ActivationStatus, hasProfile: boolean): { text: string; tone: string } {
@@ -121,6 +123,9 @@ export function MyAccessSection() {
           </button>
           <button className="settings-btn" disabled={busy !== null} onClick={() => void checkUpdates()}>
             <DownloadCloud size={15} /> {busy === 'updates' ? 'Проверка…' : 'Проверить обновления'}
+          </button>
+          <button className="settings-btn" onClick={() => void window.alpha.tabs.create({ url: ACCESS_PAGE_URL })}>
+            <ExternalLink size={15} /> Страница доступа
           </button>
         </div>
         {updateMsg && <p className="settings-muted" style={{ marginTop: 10 }}>{updateMsg}</p>}

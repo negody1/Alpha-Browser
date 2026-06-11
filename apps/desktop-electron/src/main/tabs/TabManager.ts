@@ -5,6 +5,7 @@ import {
   type WebContentsView as WebContentsViewType,
 } from 'electron';
 import { randomUUID } from 'node:crypto';
+import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
 import {
   GROUP_COLOR_PRESETS,
@@ -48,6 +49,10 @@ const WEB_PREFS = {
   contextIsolation: true,
   nodeIntegration: false,
   webSecurity: true,
+  // PDF: enable Chromium's built-in pdfium viewer so PDFs open IN the tab
+  // (with zoom / search / print / download / page navigation) instead of being
+  // forced to download. Loopback-only proxy + webSecurity stay in force.
+  plugins: true,
 } as const;
 
 /**
@@ -227,6 +232,26 @@ export class TabManager {
     } else {
       this.emitState();
     }
+    return this.getState();
+  }
+
+  /**
+   * Open a LOCAL file (PDF, image, text…) chosen by the user via the OS dialog,
+   * in a new DIRECT tab. This is a TRUSTED, user-initiated path — it deliberately
+   * bypasses the http-only navigation guard, while web pages still cannot
+   * navigate to file:// (that guard is unchanged). Local files never route
+   * through the proxy.
+   */
+  openLocalFile(filePath: string): BrowserStateSnapshot {
+    const url = pathToFileURL(filePath).toString();
+    const id = randomUUID();
+    const entry = this.createWebEntry(id, url, 'DIRECT');
+    entry.title = filePath.split(/[\\/]/).pop() || url;
+    entry.view = this.createWebView(id, entry.partition);
+    this.tabs.set(id, entry);
+    this.insertTabIdAfterActive(id);
+    this.attachAndLoad(entry);
+    this.switchTab(id);
     return this.getState();
   }
 

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Notification, session, shell } from 'electron';
+import { app, BrowserWindow, Menu, Notification, dialog, session, shell } from 'electron';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { APP_NAME } from '@alpha/shared-types';
@@ -405,10 +405,47 @@ function createWindow(): BrowserWindow {
   return window;
 }
 
+/**
+ * Open a local file (PDF / image / text) chosen via the OS dialog, in a new
+ * DIRECT tab. User-initiated only; web pages still cannot navigate to file://.
+ */
+async function openLocalFileDialog(): Promise<void> {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  const res = await dialog.showOpenDialog(mainWindow, {
+    title: 'Открыть файл',
+    properties: ['openFile'],
+    filters: [
+      { name: 'Документы и медиа', extensions: ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'txt', 'json', 'xml', 'csv'] },
+      { name: 'PDF', extensions: ['pdf'] },
+      { name: 'Все файлы', extensions: ['*'] },
+    ],
+  });
+  const file = res.canceled ? null : res.filePaths[0];
+  if (file) tabManager?.openLocalFile(file);
+}
+
+/** Minimal application menu — kept hidden by autoHideMenuBar; accelerators stay active. */
+function installAppMenu(): void {
+  const menu = Menu.buildFromTemplate([
+    {
+      label: 'Файл',
+      submenu: [
+        { label: 'Открыть файл…', accelerator: 'CommandOrControl+O', click: () => void openLocalFileDialog() },
+        { type: 'separator' },
+        { role: 'quit', label: 'Выход' },
+      ],
+    },
+    { label: 'Правка', submenu: [{ role: 'undo' }, { role: 'redo' }, { type: 'separator' }, { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }] },
+    { label: 'Вид', submenu: [{ role: 'reload' }, { role: 'forceReload' }, { role: 'toggleDevTools' }, { type: 'separator' }, { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }] },
+  ]);
+  Menu.setApplicationMenu(menu);
+}
+
 app.whenReady().then(() => {
   if (process.platform === 'win32') {
     app.setAppUserModelId('com.alpha.browser');
   }
+  installAppMenu();
 
   registerTabsIpc(() => tabManager);
   registerShellIpc(() => tabManager);
