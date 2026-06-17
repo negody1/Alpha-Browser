@@ -15,6 +15,34 @@ import { AdblockStore } from '../storage/AdblockStore';
 import type { TabManager } from '../tabs/TabManager';
 import { adblockAdd, timingsEnabled } from '../nav-timings';
 
+/**
+ * PART 3 — URL tracking cleanup. Strips ONLY these well-known tracking params.
+ * Everything else (oauth `code`/`state`, payment ids, session tokens, ...) is
+ * left untouched, and cleanup runs ONLY on top-level GET navigations — so auth /
+ * payment / OAuth redirect flows are never broken.
+ */
+const TRACKING_PARAMS = new Set([
+  'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+  'fbclid', 'gclid', 'yclid', 'mc_eid',
+]);
+
+function cleanTrackingUrl(rawUrl: string): string | null {
+  let u: URL;
+  try {
+    u = new URL(rawUrl);
+  } catch {
+    return null;
+  }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+  const keys = [...u.searchParams.keys()];
+  if (!keys.some((k) => TRACKING_PARAMS.has(k))) return null;
+  for (const k of keys) {
+    if (TRACKING_PARAMS.has(k)) u.searchParams.delete(k);
+  }
+  const cleaned = u.toString();
+  return cleaned !== rawUrl ? cleaned : null;
+}
+
 function mapResourceType(input: string): AdblockResourceType {
   // Electron: mainFrame, subFrame, stylesheet, script, image, font, object, xhr, ping, cspReport, media, websocket, other
   if (input === 'mainFrame') return 'mainFrame';
@@ -105,6 +133,16 @@ export class AdblockService {
       if (!this.store.isEnabled()) {
         callback({});
         return;
+      }
+
+      // PART 3: strip tracking params on top-level GET navigations (one-shot
+      // redirect; the cleaned URL has none of these params, so no loop).
+      if (details.resourceType === 'mainFrame' && (details.method ?? 'GET') === 'GET') {
+        const cleaned = cleanTrackingUrl(details.url);
+        if (cleaned) {
+          callback({ redirectURL: cleaned });
+          return;
+        }
       }
 
       // Avoid breaking downloads flows: do not block requests that are marked as downloads by Electron,

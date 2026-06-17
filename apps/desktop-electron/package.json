@@ -1,6 +1,6 @@
 {
   "name": "@alpha/desktop-electron",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Alpha Browser — приватный браузер с пер-табовой маршрутизацией DIRECT/PROXY",
   "productName": "Alpha Browser",
