@@ -33,7 +33,6 @@ export function QuickLinks({ onNavigate }: { onNavigate: (url: string) => Promis
   const [editing, setEditing] = useState<ShortcutLink | null>(null);
   const [draftTitle, setDraftTitle] = useState('');
   const [draftUrl, setDraftUrl] = useState('');
-  const [draftIconUrl, setDraftIconUrl] = useState('');
   const [broken, setBroken] = useState<Record<string, boolean>>({});
   const [dragId, setDragId] = useState<string | null>(null);
 
@@ -41,10 +40,11 @@ export function QuickLinks({ onNavigate }: { onNavigate: (url: string) => Promis
 
   async function saveDraft() {
     const title = draftTitle.trim();
-    const url = draftUrl.trim();
-    const iconUrl = draftIconUrl.trim() || null;
+    let url = draftUrl.trim();
     if (!title || !url) return;
-    await window.alpha.shortcuts.upsert({ id: editing?.id, title, url, iconUrl });
+    if (!/^https?:\/\//i.test(url)) url = `https://${url}`; // accept "github.com"
+    // Favicon resolves automatically; any existing custom icon is preserved.
+    await window.alpha.shortcuts.upsert({ id: editing?.id, title, url, iconUrl: editing?.iconUrl ?? null });
     setEditing(null);
   }
 
@@ -52,7 +52,6 @@ export function QuickLinks({ onNavigate }: { onNavigate: (url: string) => Promis
     setEditing({ id: '', title: '', url: '', iconUrl: null, order: 0, createdAt: '', updatedAt: '' });
     setDraftTitle('');
     setDraftUrl('');
-    setDraftIconUrl('');
   }
 
   async function removeShortcut(id: string) {
@@ -63,7 +62,6 @@ export function QuickLinks({ onNavigate }: { onNavigate: (url: string) => Promis
     setEditing(link);
     setDraftTitle(link.title);
     setDraftUrl(link.url);
-    setDraftIconUrl(link.iconUrl ?? '');
   }
 
   function onDropOn(targetId: string) {
@@ -164,17 +162,10 @@ export function QuickLinks({ onNavigate }: { onNavigate: (url: string) => Promis
             </label>
             <label>
               <span>URL</span>
-              <input value={draftUrl} onChange={(e) => setDraftUrl(e.target.value)} placeholder="https://..." />
-            </label>
-            <label>
-              <span>Icon URL</span>
-              <input
-                value={draftIconUrl}
-                onChange={(e) => setDraftIconUrl(e.target.value)}
-                placeholder="https://.../icon.png"
-              />
+              <input value={draftUrl} onChange={(e) => setDraftUrl(e.target.value)} placeholder="github.com" />
             </label>
           </div>
+          <p className="ntp-shortcuts-editor-hint">Иконку сайта браузер подберёт автоматически.</p>
           <div className="ntp-shortcuts-editor-actions">
             <button type="button" className="ntp-shortcuts-editor-btn primary" onClick={() => void saveDraft()}>
               Сохранить

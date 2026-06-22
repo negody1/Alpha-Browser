@@ -12,6 +12,8 @@ export interface TabEntry {
   canGoBack: boolean;
   canGoForward: boolean;
   crashed: boolean;
+  /** Renderer is hung (Electron 'unresponsive'); cleared on 'responsive'. */
+  unresponsive?: boolean;
   sessionGroupId: string | null;
   loadFailed: boolean;
   /** P3-B Tab Audio: the page is currently emitting audio. */

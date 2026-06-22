@@ -1,5 +1,6 @@
 import { BrowserWindow, type WebContents } from 'electron';
 import type { RoutePartition } from '@alpha/shared-types';
+import { devToolsAllowed } from '../dev-flags';
 
 /** PROXY fingerprint target timezone (matches NL egress IP geography). */
 export const PROXY_TIMEZONE = 'Europe/Amsterdam';
@@ -105,20 +106,34 @@ export function wireDetachedDevTools(
   wc: WebContents,
   isProxyPartition: () => boolean,
 ): void {
+  const allowed = devToolsAllowed();
+
   wc.on('before-input-event', (event, input) => {
     if (input.type !== 'keyDown') return;
+    const k = (input.key || '').toLowerCase();
     const inspect =
       input.key === 'F12' ||
-      (input.control && input.shift && (input.key === 'I' || input.key === 'i')) ||
-      (input.meta && input.alt && (input.key === 'I' || input.key === 'i'));
-    if (!inspect) return;
+      (input.control && input.shift && (k === 'i' || k === 'j' || k === 'c')) ||
+      (input.meta && input.alt && k === 'i');
+    const viewSource = input.control && !input.shift && k === 'u';
+    if (!inspect && !viewSource) return;
+    // P0: in production these are swallowed so the inspector can never open.
     event.preventDefault();
+    if (!allowed || viewSource) return;
     if (wc.isDevToolsOpened()) {
       wc.closeDevTools();
     } else {
       wc.openDevTools({ mode: 'detach', activate: true });
     }
   });
+
+  // Production: if anything (e.g. a stray API call) opens DevTools, slam it shut.
+  if (!allowed) {
+    wc.on('devtools-opened', () => {
+      if (!wc.isDestroyed() && wc.isDevToolsOpened()) wc.closeDevTools();
+    });
+    return;
+  }
 
   // Context-menu "Inspect" opens docked DevTools by default — reopen detached.
   wc.on('devtools-opened', () => {

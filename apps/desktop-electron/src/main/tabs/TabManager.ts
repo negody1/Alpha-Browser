@@ -293,6 +293,25 @@ export class TabManager {
     return this.getState();
   }
 
+  /** P2 tab context menu: close every tab except `tabId`. */
+  closeOtherTabs(tabId: string): BrowserStateSnapshot {
+    if (!this.tabs.has(tabId)) return this.getState();
+    for (const id of [...this.tabOrder]) {
+      if (id !== tabId) this.closeTab(id);
+    }
+    return this.getState();
+  }
+
+  /** P2 tab context menu: close all tabs to the right of `tabId`. */
+  closeTabsToRight(tabId: string): BrowserStateSnapshot {
+    const idx = this.tabOrder.indexOf(tabId);
+    if (idx < 0) return this.getState();
+    for (const id of this.tabOrder.slice(idx + 1)) {
+      this.closeTab(id);
+    }
+    return this.getState();
+  }
+
   switchTab(tabId: string): BrowserStateSnapshot {
     if (!this.tabs.has(tabId)) {
       return this.getState();
@@ -709,6 +728,7 @@ export class TabManager {
         canGoBack: t.canGoBack,
         canGoForward: t.canGoForward,
         crashed: t.crashed,
+        unresponsive: t.unresponsive ?? false,
         sessionGroupId: t.sessionGroupId,
         audible: t.audible,
         muted: t.muted,
@@ -1467,6 +1487,7 @@ export class TabManager {
         this.fullscreenTabId = null;
       }
       entry.crashed = true;
+      entry.unresponsive = false;
       entry.isLoading = false;
       entry.title = `Сбой вкладки (${details.reason})`;
       if (entry.view) {
@@ -1474,6 +1495,33 @@ export class TabManager {
       }
       this.emitState();
     });
+
+    // P0: a hung renderer (long media sessions) — surface a recovery banner.
+    webContents.on('unresponsive', () => {
+      const entry = this.tabs.get(tabId);
+      if (!entry || entry.crashed) return;
+      entry.unresponsive = true;
+      this.emitState();
+    });
+    webContents.on('responsive', () => {
+      const entry = this.tabs.get(tabId);
+      if (!entry) return;
+      if (entry.unresponsive) {
+        entry.unresponsive = false;
+        this.emitState();
+      }
+    });
+  }
+
+  /** Public: rebuild a crashed tab's view and reload its URL (preserves the URL). */
+  recoverTab(tabId: string): BrowserStateSnapshot {
+    const entry = this.tabs.get(tabId);
+    if (entry && (entry.crashed || entry.unresponsive)) {
+      entry.unresponsive = false;
+      this.recoverCrashedTab(entry);
+      this.emitState();
+    }
+    return this.getState();
   }
 
   private recoverCrashedTab(entry: TabEntry): void {

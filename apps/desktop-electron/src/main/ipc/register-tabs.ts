@@ -86,6 +86,24 @@ export function registerTabsIpc(getManager: () => TabManager | null): void {
     return getManager()?.reload(data?.tabId) ?? emptyBrowserState();
   });
 
+  ipcMain.handle('tabs:recover', (_event, payload: unknown) => {
+    const data = parsePayload(tabIdPayload, payload);
+    if (!data) return getManager()?.getState() ?? emptyBrowserState();
+    return getManager()?.recoverTab(data.tabId) ?? emptyBrowserState();
+  });
+
+  ipcMain.handle('tabs:closeOthers', (_event, payload: unknown) => {
+    const data = parsePayload(tabIdPayload, payload);
+    if (!data) return getManager()?.getState() ?? emptyBrowserState();
+    return getManager()?.closeOtherTabs(data.tabId) ?? emptyBrowserState();
+  });
+
+  ipcMain.handle('tabs:closeToRight', (_event, payload: unknown) => {
+    const data = parsePayload(tabIdPayload, payload);
+    if (!data) return getManager()?.getState() ?? emptyBrowserState();
+    return getManager()?.closeTabsToRight(data.tabId) ?? emptyBrowserState();
+  });
+
   ipcMain.handle('tabs:stop', (_event, payload: unknown) => {
     const data = parsePayload(optionalTabIdPayload, payload);
     return getManager()?.stop(data?.tabId) ?? emptyBrowserState();

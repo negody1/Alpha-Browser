@@ -14,11 +14,34 @@ export function TabMenuOverlay({ payload }: { payload: TabMenuPayload }) {
         <button
           type="button"
           className="alpha-overlay-menu-item"
+          onClick={() => void window.alpha.tabs.close(tabId).then(closePopup)}
+        >
+          Закрыть
+        </button>
+        <button
+          type="button"
+          className="alpha-overlay-menu-item"
+          onClick={() => void window.alpha.tabs.closeOthers(tabId).then(closePopup)}
+        >
+          Закрыть другие
+        </button>
+        <button
+          type="button"
+          className="alpha-overlay-menu-item"
+          onClick={() => void window.alpha.tabs.closeToRight(tabId).then(closePopup)}
+        >
+          Закрыть вкладки справа
+        </button>
+        <div className="alpha-overlay-menu-sep" />
+        <button
+          type="button"
+          className="alpha-overlay-menu-item"
           disabled={tabKind !== 'web'}
           onClick={() => void window.alpha.tabs.duplicate(tabId).then(closePopup)}
         >
           Дублировать
         </button>
+        <div className="alpha-overlay-menu-sep" />
         {inGroup ? (
           <>
             <button

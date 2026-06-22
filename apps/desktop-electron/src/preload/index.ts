@@ -64,6 +64,9 @@ export interface AlphaApi {
     goBack: (tabId?: string) => Promise<BrowserStateSnapshot>;
     goForward: (tabId?: string) => Promise<BrowserStateSnapshot>;
     reload: (tabId?: string) => Promise<BrowserStateSnapshot>;
+    recover: (tabId: string) => Promise<BrowserStateSnapshot>;
+    closeOthers: (tabId: string) => Promise<BrowserStateSnapshot>;
+    closeToRight: (tabId: string) => Promise<BrowserStateSnapshot>;
     stop: (tabId?: string) => Promise<BrowserStateSnapshot>;
     reorder: (tabIds: string[]) => Promise<BrowserStateSnapshot>;
     duplicate: (tabId: string) => Promise<BrowserStateSnapshot>;
@@ -310,6 +313,12 @@ const alphaApi: AlphaApi = {
       ipcRenderer.invoke('tabs:goForward', { tabId }) as Promise<BrowserStateSnapshot>,
     reload: (tabId) =>
       ipcRenderer.invoke('tabs:reload', { tabId }) as Promise<BrowserStateSnapshot>,
+    recover: (tabId) =>
+      ipcRenderer.invoke('tabs:recover', { tabId }) as Promise<BrowserStateSnapshot>,
+    closeOthers: (tabId) =>
+      ipcRenderer.invoke('tabs:closeOthers', { tabId }) as Promise<BrowserStateSnapshot>,
+    closeToRight: (tabId) =>
+      ipcRenderer.invoke('tabs:closeToRight', { tabId }) as Promise<BrowserStateSnapshot>,
     stop: (tabId) => ipcRenderer.invoke('tabs:stop', { tabId }) as Promise<BrowserStateSnapshot>,
     reorder: (tabIds) => ipcRenderer.invoke('tabs:reorder', { tabIds }) as Promise<BrowserStateSnapshot>,
     duplicate: (tabId) =>

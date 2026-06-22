@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { APP_NAME } from '@alpha/shared-types';
 import { isSafeExternalUrl } from './navigation';
+import { devToolsAllowed } from './dev-flags';
 import { registerGroupsIpc } from './ipc/register-groups';
 import { registerBookmarksIpc } from './ipc/register-bookmarks';
 import { registerHistoryIpc } from './ipc/register-history';
@@ -47,10 +48,16 @@ import { PasswordsSecretsStore } from './storage/PasswordsSecretsStore';
 import { PasswordService } from './passwords/PasswordService';
 import { SafeStorageProvider } from './passwords/SafeStorageProvider';
 import { ShortcutsStore } from './storage/ShortcutsStore';
+import { WindowStateStore } from './storage/WindowStateStore';
+import { PrefsStore } from './storage/PrefsStore';
 
 const isDev = !app.isPackaged;
 
 let mainWindow: BrowserWindow | null = null;
+let windowStateStore: WindowStateStore | null = null;
+let prefsStore: PrefsStore | null = null;
+let allowWindowClose = false;
+const CLOSE_CONFIRM_TAB_THRESHOLD = 10;
 let tabManager: TabManager | null = null;
 let sessionRegistry: SessionRegistry | null = null;
 let updateCheckService: UpdateCheckService | null = null;
@@ -159,9 +166,17 @@ function createWindow(): BrowserWindow {
   // match the NL egress. DIRECT keeps the system locale.
   sessionRegistry.applyProxyLocale();
 
+  // P0 window state: restore previous geometry; first launch starts maximized.
+  windowStateStore = windowStateStore ?? new WindowStateStore();
+  const saved = windowStateStore.get();
+  const firstLaunch = !saved;
+
   const window = new BrowserWindow({
-    width: 1280,
-    height: 800,
+    width: saved?.width ?? 1280,
+    height: saved?.height ?? 800,
+    ...(saved && typeof saved.x === 'number' && typeof saved.y === 'number'
+      ? { x: saved.x, y: saved.y }
+      : {}),
     minWidth: 900,
     minHeight: 600,
     show: false,
@@ -180,9 +195,52 @@ function createWindow(): BrowserWindow {
     },
   });
 
+  // First launch (no saved state) → maximized; otherwise honor the saved maximized flag.
+  if (firstLaunch || saved?.isMaximized) {
+    window.maximize();
+  }
+
+  // P1: confirm closing when many tabs are open (unless the user opted out).
+  prefsStore = prefsStore ?? new PrefsStore();
+  window.on('close', (event) => {
+    if (allowWindowClose) return;
+    if (prefsStore?.getCloseConfirmDisabled()) return;
+    const tabCount = tabManager?.getState().tabs.filter((t) => t.kind === 'web').length ?? 0;
+    if (tabCount < CLOSE_CONFIRM_TAB_THRESHOLD) return;
+    event.preventDefault();
+    void dialog
+      .showMessageBox(window, {
+        type: 'question',
+        buttons: ['Отмена', 'Закрыть'],
+        defaultId: 1,
+        cancelId: 0,
+        message: 'Закрыть Alpha Browser?',
+        detail: `Открыто вкладок: ${tabCount}`,
+        checkboxLabel: 'Больше не спрашивать',
+      })
+      .then(({ response, checkboxChecked }) => {
+        if (response === 1) {
+          if (checkboxChecked) prefsStore?.setCloseConfirmDisabled(true);
+          allowWindowClose = true;
+          window.close();
+        }
+      });
+  });
+
+  // Persist geometry on close. getNormalBounds() returns the restored (un-maximized)
+  // rect even while maximized, so we always remember a sensible size to restore to.
+  window.on('close', () => {
+    try {
+      const b = window.getNormalBounds();
+      windowStateStore?.set({ width: b.width, height: b.height, x: b.x, y: b.y, isMaximized: window.isMaximized() });
+    } catch {
+      /* best effort */
+    }
+  });
+
   window.on('ready-to-show', () => {
     window.show();
-    if (isDev) {
+    if (devToolsAllowed() && isDev) {
       // Make renderer issues visible immediately (white screen debugging).
       window.webContents.openDevTools({ mode: 'detach' });
     }
@@ -436,7 +494,18 @@ function installAppMenu(): void {
       ],
     },
     { label: 'Правка', submenu: [{ role: 'undo' }, { role: 'redo' }, { type: 'separator' }, { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }] },
-    { label: 'Вид', submenu: [{ role: 'reload' }, { role: 'forceReload' }, { role: 'toggleDevTools' }, { type: 'separator' }, { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }] },
+    {
+      label: 'Вид',
+      submenu: [
+        { role: 'reload' },
+        { role: 'forceReload' },
+        // P0: DevTools menu entry only in dev / behind the hidden flag.
+        ...(devToolsAllowed() ? [{ role: 'toggleDevTools' as const }, { type: 'separator' as const }] : [{ type: 'separator' as const }]),
+        { role: 'resetZoom' },
+        { role: 'zoomIn' },
+        { role: 'zoomOut' },
+      ],
+    },
   ]);
   Menu.setApplicationMenu(menu);
 }

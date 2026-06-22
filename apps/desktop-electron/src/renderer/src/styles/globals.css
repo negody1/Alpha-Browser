@@ -2047,22 +2047,33 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  background: rgba(14, 17, 22, 0.92);
+  gap: 6px;
+  text-align: center;
+  padding: 24px;
+  background: radial-gradient(600px 300px at 50% 40%, rgba(122, 77, 255, 0.10), transparent 70%), rgba(11, 13, 18, 0.96);
 }
 
-.shell-crash-banner p {
-  margin: 0;
-  color: var(--color-text-secondary);
-}
+.ntp-shortcuts-editor-hint { margin: 8px 0 0; font-size: 12.5px; color: rgba(255, 255, 255, 0.45); }
+
+.shell-crash-title { margin: 0; font-size: 18px; font-weight: 600; color: var(--color-text); }
+.shell-crash-sub { margin: 0 0 8px; color: var(--color-text-secondary); max-width: 380px; }
+
+.shell-crash-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 
 .shell-crash-banner button {
-  padding: 8px 16px;
+  padding: 9px 16px;
   border-radius: 10px;
-  border: none;
-  background: var(--color-accent);
-  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--color-text);
   cursor: pointer;
+  font-weight: 600;
+  transition: border-color 0.15s, background 0.15s;
+}
+.shell-crash-banner button:hover { border-color: rgba(255, 255, 255, 0.28); }
+.shell-crash-banner button.shell-crash-primary {
+  background: linear-gradient(135deg, #6d49ff, #9b6cff);
+  border: none;
 }
 
 .shell-sidebar-btn-active {

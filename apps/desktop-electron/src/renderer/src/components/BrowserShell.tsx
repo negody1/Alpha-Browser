@@ -56,10 +56,27 @@ export function BrowserShell() {
           )}
           {activeTab?.crashed && (
             <div className="shell-crash-banner">
-              <p>Вкладка завершилась с ошибкой.</p>
-              <button type="button" onClick={() => void window.alpha.tabs.reload(activeTab.id)}>
-                Перезагрузить
-              </button>
+              <p className="shell-crash-title">Эта вкладка завершилась с ошибкой</p>
+              <p className="shell-crash-sub">Страница и её адрес сохранены — можно восстановить вкладку.</p>
+              <div className="shell-crash-actions">
+                <button type="button" className="shell-crash-primary" onClick={() => void window.alpha.tabs.recover(activeTab.id)}>
+                  Восстановить вкладку
+                </button>
+                <button type="button" onClick={() => void window.alpha.tabs.reload(activeTab.id)}>Перезагрузить</button>
+                <button type="button" onClick={() => void window.alpha.tabs.close(activeTab.id)}>Закрыть</button>
+              </div>
+            </div>
+          )}
+          {!activeTab?.crashed && activeTab?.unresponsive && (
+            <div className="shell-crash-banner">
+              <p className="shell-crash-title">Эта вкладка перестала отвечать</p>
+              <p className="shell-crash-sub">Возможно, страница перегружена. Подождите или восстановите вкладку.</p>
+              <div className="shell-crash-actions">
+                <button type="button" className="shell-crash-primary" onClick={() => void window.alpha.tabs.recover(activeTab.id)}>
+                  Восстановить вкладку
+                </button>
+                <button type="button" onClick={() => void window.alpha.tabs.close(activeTab.id)}>Закрыть</button>
+              </div>
             </div>
           )}
         </div>

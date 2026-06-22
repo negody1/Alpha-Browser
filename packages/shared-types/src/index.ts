@@ -183,6 +183,8 @@ export interface TabSnapshot {
   canGoBack: boolean;
   canGoForward: boolean;
   crashed?: boolean;
+  /** Renderer hung ('unresponsive'); shows a recovery banner. */
+  unresponsive?: boolean;
   sessionGroupId: string | null;
   /** P3-B Tab Audio: page is currently emitting audio. */
   audible: boolean;
