@@ -64,6 +64,10 @@ export function registerTabsIpc(getManager: () => TabManager | null): void {
     navMark(data.tabId);
     navLog(data.tabId, 'ipc:navigate-received', { input: data.input });
     const resolved = resolveNavigationUrl(data.input);
+    if (process.env.ALPHA_DEBUG_OMNIBOX === '1') {
+      // P0 diagnostics: shows the FINAL navigation target for any omnibox click/Enter.
+      console.log('[alpha][omnibox-dbg] navigate', { input: data.input, resolved });
+    }
     if (!resolved) {
       return manager.getState();
     }

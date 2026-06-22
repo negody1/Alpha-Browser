@@ -14,6 +14,14 @@ export function registerOmniboxIpc(getService: () => OmniboxService | null): voi
     const data = parsePayload(omniboxQueryPayload, payload);
     const service = getService();
     if (!data || !service) return [];
-    return service.query(data.input, data.limit);
+    const results = service.query(data.input, data.limit);
+    if (process.env.ALPHA_DEBUG_OMNIBOX === '1') {
+      // P0 diagnostics: the exact rendered list (index / kind / title / url).
+      console.log(
+        `[alpha][omnibox-dbg] query "${data.input}" ->`,
+        results.map((s, i) => `#${i} ${s.kind} | ${s.title} | ${s.url}`),
+      );
+    }
+    return results;
   });
 }

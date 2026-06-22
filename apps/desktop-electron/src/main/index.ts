@@ -253,15 +253,20 @@ function createWindow(): BrowserWindow {
     }
   });
 
-  // P0 zoom-regression guard: the browser CHROME must never zoom (it would shove
-  // the title-bar controls out of place). Snap the shell back to 100% if anything
-  // (e.g. Ctrl+mouse-wheel) tries to zoom it. Page zoom is handled per-tab.
+  // P0 zoom-regression guard + MIGRATION. Chromium PERSISTS zoom per-origin in the
+  // session, so users who hit Ctrl- on the chrome before the fix keep a tiny UI
+  // even after updating. Force the shell back to 100% on every load (this also
+  // overwrites the bad persisted value), and snap back if anything tries to zoom
+  // it (e.g. Ctrl+mouse-wheel). Page zoom is handled per-tab on guest webContents.
+  const resetChromeZoom = () => {
+    if (window.isDestroyed() || window.webContents.isDestroyed()) return;
+    window.webContents.setZoomLevel(0); // overwrites any persisted shell zoom
+    window.webContents.setZoomFactor(1);
+  };
   window.webContents.setVisualZoomLevelLimits(1, 1).catch(() => {});
-  window.webContents.on('zoom-changed', () => {
-    if (!window.isDestroyed() && !window.webContents.isDestroyed()) {
-      window.webContents.setZoomFactor(1);
-    }
-  });
+  window.webContents.on('dom-ready', resetChromeZoom);
+  window.webContents.on('did-finish-load', resetChromeZoom);
+  window.webContents.on('zoom-changed', resetChromeZoom);
 
   if (isDev) {
     window.webContents.on('did-fail-load', (_e, errorCode, errorDescription, validatedURL, isMainFrame) => {

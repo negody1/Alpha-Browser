@@ -36,7 +36,11 @@ export function NewTabPage() {
     if (s.kind === 'open-tab' && s.tabId) {
       void window.alpha.tabs.switch(s.tabId);
     } else {
-      void window.alpha.tabs.navigate(activeTabId, s.url);
+      // P0: search → navigate by the exact query text (fresh, correct search URL);
+      // url/history → exact URL. Never a query-less Google.
+      const target = s.kind === 'search' ? (s.title?.trim() || s.url) : (s.url || s.title);
+      if (!target || !target.trim()) return;
+      void window.alpha.tabs.navigate(activeTabId, target);
     }
     setSelectedIndex(-1);
     inputRef.current?.blur();
