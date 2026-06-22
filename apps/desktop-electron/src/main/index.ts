@@ -253,6 +253,16 @@ function createWindow(): BrowserWindow {
     }
   });
 
+  // P0 zoom-regression guard: the browser CHROME must never zoom (it would shove
+  // the title-bar controls out of place). Snap the shell back to 100% if anything
+  // (e.g. Ctrl+mouse-wheel) tries to zoom it. Page zoom is handled per-tab.
+  window.webContents.setVisualZoomLevelLimits(1, 1).catch(() => {});
+  window.webContents.on('zoom-changed', () => {
+    if (!window.isDestroyed() && !window.webContents.isDestroyed()) {
+      window.webContents.setZoomFactor(1);
+    }
+  });
+
   if (isDev) {
     window.webContents.on('did-fail-load', (_e, errorCode, errorDescription, validatedURL, isMainFrame) => {
       if (!isMainFrame) return;
@@ -508,9 +518,11 @@ function installAppMenu(): void {
         { role: 'forceReload' },
         // P0: DevTools menu entry only in dev / behind the hidden flag.
         ...(devToolsAllowed() ? [{ role: 'toggleDevTools' as const }, { type: 'separator' as const }] : [{ type: 'separator' as const }]),
-        { role: 'resetZoom' },
-        { role: 'zoomIn' },
-        { role: 'zoomOut' },
+        // P0 zoom: these act on the ACTIVE PAGE (active guest webContents), never
+        // the browser chrome — so the title bar / tabs / sidebar never scale.
+        { label: 'Увеличить', accelerator: 'CommandOrControl+=', click: () => mainWindow && tabManager?.zoomActiveTab('in') },
+        { label: 'Уменьшить', accelerator: 'CommandOrControl+-', click: () => mainWindow && tabManager?.zoomActiveTab('out') },
+        { label: 'Сбросить масштаб', accelerator: 'CommandOrControl+0', click: () => mainWindow && tabManager?.zoomActiveTab('reset') },
       ],
     },
   ]);

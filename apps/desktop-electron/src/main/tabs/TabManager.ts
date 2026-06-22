@@ -312,6 +312,23 @@ export class TabManager {
     return this.getState();
   }
 
+  /**
+   * P0 zoom fix: zoom applies to the ACTIVE PAGE only, never the browser chrome.
+   * Electron persists zoom per-origin within the session, so this also gives
+   * per-domain zoom memory for free.
+   */
+  zoomActiveTab(action: 'in' | 'out' | 'reset'): void {
+    const entry = this.activeTabId ? this.tabs.get(this.activeTabId) : null;
+    const wc = entry?.view?.webContents;
+    if (!wc || wc.isDestroyed()) return;
+    if (action === 'reset') {
+      wc.setZoomLevel(0);
+    } else {
+      const next = wc.getZoomLevel() + (action === 'in' ? 0.5 : -0.5);
+      wc.setZoomLevel(Math.max(-3, Math.min(4.5, next)));
+    }
+  }
+
   switchTab(tabId: string): BrowserStateSnapshot {
     if (!this.tabs.has(tabId)) {
       return this.getState();

@@ -140,7 +140,12 @@ export function Toolbar() {
     if (s.kind === 'open-tab' && s.tabId) {
       void window.alpha.tabs.switch(s.tabId);
     } else {
-      void window.alpha.tabs.navigate(activeTabId, s.url);
+      // P0 fix: for a SEARCH suggestion navigate by its query text (built fresh
+      // into a proper search URL) instead of a pre-resolved URL — this prevents
+      // the "blank Google" bug. For url/history use the exact target URL.
+      const target = s.kind === 'search' ? (s.title?.trim() || s.url) : (s.url || s.title);
+      if (!target || !target.trim()) return;
+      void window.alpha.tabs.navigate(activeTabId, target);
     }
     closeOmnibox();
     inputRef.current?.blur();
