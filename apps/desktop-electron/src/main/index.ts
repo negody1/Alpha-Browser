@@ -1,7 +1,7 @@
 import { app, BrowserWindow, Menu, Notification, dialog, session, shell } from 'electron';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { APP_NAME } from '@alpha/shared-types';
+import { APP_NAME, CHROME_LAYOUT } from '@alpha/shared-types';
 import { isSafeExternalUrl } from './navigation';
 import { devToolsAllowed } from './dev-flags';
 import { registerGroupsIpc } from './ipc/register-groups';
@@ -186,6 +186,13 @@ function createWindow(): BrowserWindow {
     // electron-builder from resources/icon.png.
     icon: join(app.getAppPath(), 'resources', 'icon.png'),
     autoHideMenuBar: true,
+    // P0 Chrome-style chrome: hide the native white title strip but KEEP native
+    // window controls (min/max/close) drawn by Windows as an overlay in the
+    // top-right. Aero/Win11 snapping, drag, double-click-maximize and the system
+    // menu all keep working via the renderer drag region (.shell-tab-bar).
+    // Does not touch sessions/proxy in any way.
+    titleBarStyle: 'hidden',
+    titleBarOverlay: { color: '#0e1116', symbolColor: '#f5f7fa', height: CHROME_LAYOUT.tabBarHeight },
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: true,

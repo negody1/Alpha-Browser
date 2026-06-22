@@ -1130,6 +1130,21 @@ body {
   background: var(--color-bg);
   border-bottom: 1px solid var(--color-border);
   z-index: 10;
+  /* P0 Chrome-style: the tab bar IS the window drag handle (frameless titlebar).
+     Reserve the native window-controls overlay on the right so tabs never hide
+     under min/max/close. env(titlebar-area-width) is exact across DPI; the 140px
+     fallback covers the rare case where the overlay vars aren't exposed. */
+  -webkit-app-region: drag;
+  padding-right: calc(100vw - env(titlebar-area-width, calc(100vw - 140px)));
+}
+
+/* Everything interactive in the tab bar must stay clickable (not draggable). */
+.shell-tab-bar .shell-tab,
+.shell-tab-bar .shell-group-chip,
+.shell-tab-bar button,
+.shell-tab-bar input,
+.shell-tab-bar a {
+  -webkit-app-region: no-drag;
 }
 
 .shell-tab-strip {
