@@ -24,10 +24,10 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..');
 
-const src = join(repoRoot, 'packages', 'core-adblock', 'assets', 'default-ads.txt');
+const assets = join(repoRoot, 'packages', 'core-adblock', 'assets');
 const destDir = join(repoRoot, 'apps', 'desktop-electron', 'resources', 'adblock');
-const dest = join(destDir, 'default-ads.txt');
 
+const src = join(assets, 'default-ads.txt');
 if (!existsSync(src)) {
   console.error('[sync-adblock] FAIL: canonical filter list not found:');
   console.error('  ' + src);
@@ -35,8 +35,15 @@ if (!existsSync(src)) {
 }
 
 mkdirSync(destDir, { recursive: true });
-copyFileSync(src, dest);
-console.log('[sync-adblock] OK: copied filter list');
-console.log('  from ' + src);
-console.log('  to   ' + dest);
+copyFileSync(src, join(destDir, 'default-ads.txt'));
+console.log('[sync-adblock] OK: copied default-ads.txt');
+
+// Bundled supplement — needed at runtime so the 24h refresh can re-merge it.
+const supp = join(assets, 'alpha-supplement.txt');
+if (existsSync(supp)) {
+  copyFileSync(supp, join(destDir, 'alpha-supplement.txt'));
+  console.log('[sync-adblock] OK: copied alpha-supplement.txt');
+} else {
+  console.warn('[sync-adblock] note: alpha-supplement.txt not found (skipping)');
+}
 process.exit(0);

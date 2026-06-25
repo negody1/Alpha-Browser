@@ -1,0 +1,61 @@
+! Title: Alpha Browser supplement
+! Description: Small, conservative supplement of third-party ad/tracking hosts
+!   that slipped past the main lists in real testing. ABP syntax, parsed into the
+!   Ghostery engine alongside EasyList/etc.
+! Safety rules:
+!   - Every rule is scoped $third-party so a site's OWN first-party requests are
+!     never affected (e.g. ads.vk.com is only blocked when embedded on other sites).
+!   - The browser additionally NEVER cancels a mainFrame document (hard guard in
+!     AdblockService), so none of these can block a page navigation.
+!   - Domains that are load-bearing for site/app functionality are intentionally
+!     NOT blocked and are listed at the bottom with the reason.
+
+! ---- Unity Ads (ad delivery only) ----
+||auction.unityads.unity3d.com^$third-party
+||webview.unityads.unity3d.com^$third-party
+||config.unityads.unity3d.com^$third-party
+||adserver.unityads.unity3d.com^$third-party
+
+! ---- Microsoft / Bing Ads ----
+||bingads.microsoft.com^$third-party
+||ads.microsoft.com^$third-party
+
+! ---- TikTok ads / business API (tracking, not the app CDN) ----
+||ads-api.tiktok.com^$third-party
+||ads-sg.tiktok.com^$third-party
+||business-api.tiktok.com^$third-party
+
+! ---- Meta: ads + pixels only (NOT the graph/CDN APIs — see skip list) ----
+||an.facebook.com^$third-party
+||tr.facebook.com^$third-party
+
+! ---- LinkedIn Insight tag ----
+||snap.licdn.com^$third-party
+
+! ---- VK / Mail.ru ads (third-party only; vk.com/mail.ru themselves untouched) ----
+||ads.vk.com^$third-party
+||ad.mail.ru^$third-party
+
+! ---- Affiliate tracking ----
+||impact.com^$third-party
+||api.impact.com^$third-party
+
+! ---- JWPlayer analytics (NOT the player CDN ssl.p.jwpcdn.com — see skip list) ----
+||g.jwpsrv.com^$third-party
+
+! ---- Cookie/consent management (annoyance; third-party only) ----
+||cdn.cookielaw.org^$third-party
+||consent.trustarc.com^$third-party
+||cdn.privacy-mgmt.com^$third-party
+
+! =====================================================================
+! INTENTIONALLY NOT BLOCKED — would break functionality (kept as docs):
+!   youtubei.googleapis.com      — YouTube InnerTube API; blocking breaks YouTube
+!   redirector.googlevideo.com   — video routing; blocking breaks playback
+!   s.youtube.com                — YouTube logging tied to playback session
+!   graph.facebook.com           — Facebook Graph API; breaks FB features/login
+!   connect.facebook.net         — Facebook JS SDK; used for "Login with Facebook"
+!   graph.instagram.com          — Instagram API
+!   i.instagram.com              — Instagram CDN/API; breaks Instagram
+!   ssl.p.jwpcdn.com             — JWPlayer library CDN; blocking breaks video players
+! These are tracking-adjacent but load-bearing, so they are left ALLOWED.

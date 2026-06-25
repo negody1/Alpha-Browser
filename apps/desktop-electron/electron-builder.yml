@@ -39,6 +39,8 @@ extraResources:
       # built by scripts/build-adblock-engine.mjs in dist:win. Loaded by
       # GhosteryEngine.deserialize(); legacy default-ads.txt remains the fallback.
       - 'engine.bin'
+      # Bundled supplement, re-merged on the 24h background refresh.
+      - 'alpha-supplement.txt'
 win:
   target:
     - nsis

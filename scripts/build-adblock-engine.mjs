@@ -17,7 +17,7 @@
  * kept (last-good) and the script still exits 0 — runtime falls back safely.
  */
 import { FiltersEngine } from '@ghostery/adblocker';
-import { existsSync, mkdirSync, writeFileSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync, statSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -25,6 +25,10 @@ const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..');
 const destDir = join(repoRoot, 'apps', 'desktop-electron', 'resources', 'adblock');
 const dest = join(destDir, 'engine.bin');
+
+// Local bundled supplement (committed canonical source). Pulled in via the
+// 'local:' marker below so it is parsed by fromLists alongside the remote lists.
+const SUPPLEMENT = join(repoRoot, 'packages', 'core-adblock', 'assets', 'alpha-supplement.txt');
 
 /**
  * Full ABP/uBO/AdGuard list set. All are safe for a general browser: ads,
@@ -48,14 +52,27 @@ const LISTS = [
   'https://ublockorigin.github.io/uAssetsCDN/filters/privacy.min.txt',
   'https://ublockorigin.github.io/uAssetsCDN/filters/badware.min.txt',
   'https://ublockorigin.github.io/uAssetsCDN/filters/unbreak.min.txt',
-  'https://ublockorigin.github.io/uAssetsCDN/filters/resource-abuse.min.txt',
+  // (uBlock resource-abuse is merged into filters.min.txt upstream — no separate file.)
   'https://ublockorigin.github.io/uAssetsCDN/filters/quick-fixes.min.txt',
   // OISD basic (ABP syntax mirror)
   'https://abp.oisd.nl/basic/',
+  // Local bundled supplement (read from disk by safeFetch, not the network).
+  'local:alpha-supplement',
 ];
 
 /** Wrap fetch so a single failing URL never rejects the whole build. */
 async function safeFetch(url, opts = {}) {
+  // Local bundled supplement — read from disk, never the network.
+  if (url === 'local:alpha-supplement') {
+    try {
+      const text = readFileSync(SUPPLEMENT, 'utf8');
+      console.log(`[build-adblock] loaded local alpha-supplement (${(text.length / 1024).toFixed(1)} KiB)`);
+      return new Response(text, { status: 200 });
+    } catch (err) {
+      console.warn(`[build-adblock] SKIP local supplement: ${err?.message ?? err}`);
+      return new Response('', { status: 200 });
+    }
+  }
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 45_000);
   try {

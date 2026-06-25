@@ -1,7 +1,7 @@
 import { app, ipcMain } from 'electron';
 import type { z } from 'zod';
 import type { TabManager } from '../tabs/TabManager';
-import { resolveNavigationUrl } from '../navigation';
+import { resolveNavigationUrl, isQuerylessGoogle, forceSearchUrl } from '../navigation';
 import { navMark, navLog } from '../nav-timings';
 import {
   createTabPayload,
@@ -63,14 +63,37 @@ export function registerTabsIpc(getManager: () => TabManager | null): void {
     }
     navMark(data.tabId);
     navLog(data.tabId, 'ipc:navigate-received', { input: data.input });
-    const resolved = resolveNavigationUrl(data.input);
+    let resolved = resolveNavigationUrl(data.input);
+
+    // RUNTIME GUARD: a SEARCH suggestion must never land on a query-less Google.
+    // It only triggers for kind 'search' — a user who typed or picked a google.com
+    // URL (kind url/history/shortcut, or raw typed input) is a different intent and
+    // is left untouched. For a search, the input IS the query, so we rebuild a real
+    // search; if there's no usable query we block rather than open /webhp.
+    if (data.suggestionKind === 'search' && isQuerylessGoogle(resolved)) {
+      const q = data.input.trim();
+      if (q && !/^https?:\/\//i.test(q) && !isQuerylessGoogle(q)) {
+        const fixed = forceSearchUrl(q);
+        console.error('[alpha][omnibox] GUARD rewrote query-less Google -> search', {
+          source: data.source, input: data.input, was: resolved, now: fixed,
+        });
+        resolved = fixed;
+      } else {
+        console.error('[alpha][omnibox] GUARD blocked query-less Google (no recoverable query)', {
+          source: data.source, input: data.input, resolved,
+        });
+        return manager.getState();
+      }
+    }
+
     if (process.env.ALPHA_DEBUG_OMNIBOX === '1') {
-      // P0 diagnostics: source + suggestion type + query + final resolved target.
+      // Full diagnostics for the omnibox/Home/NTP search path.
       console.log('[alpha][omnibox-dbg] navigate', {
+        fn: 'tabs:navigate',
         source: data.source ?? '(direct)',
         suggestionKind: data.suggestionKind ?? '(none)',
-        query: data.input,
-        resolved,
+        rawInput: data.input,
+        finalTarget: resolved,
       });
     }
     if (!resolved) {

@@ -45,6 +45,34 @@ export function isAllowedNavigationUrl(url: string): boolean {
 }
 
 /**
+ * True when `raw` is a Google URL with no actual search query — i.e. the
+ * homepage, /webhp, or /search with an empty q. A search activation must NEVER
+ * resolve here; the navigate handler rewrites such a target back into a real
+ * search. (A user who explicitly typed/picked google.com is a different path and
+ * is allowed.)
+ */
+export function isQuerylessGoogle(raw: string): boolean {
+  try {
+    const u = new URL(raw);
+    if (!/(^|\.)google\.[a-z.]+$/i.test(u.hostname)) return false;
+    const p = u.pathname;
+    if (p === '/' || p === '' || p === '/webhp') return true;
+    if (p === '/search') {
+      const q = u.searchParams.get('q');
+      return !q || q.trim() === '';
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/** Build a guaranteed Google search URL for an exact (non-URL) query. */
+export function forceSearchUrl(query: string): string {
+  return `${DEFAULT_SEARCH_URL}${encodeURIComponent(query.trim())}`;
+}
+
+/**
  * Schemes the privileged chrome renderer is allowed to hand off to the OS via
  * shell.openExternal. Everything else (file:, custom protocol handlers, etc.)
  * is rejected so a compromised chrome renderer cannot trigger arbitrary

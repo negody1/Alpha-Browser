@@ -46,6 +46,18 @@ export interface ActivationContext {
 /** Execute the resolved action. Returns the action taken (for callers/tests). */
 export function activateSuggestion(s: OmniboxSuggestion, ctx: ActivationContext): SuggestionAction {
   const decision = resolveSuggestionTarget(s);
+  if (typeof window !== 'undefined' && window.alpha?.debug?.omnibox) {
+    // ALPHA_DEBUG_OMNIBOX: full picture from the activation site.
+    // eslint-disable-next-line no-console
+    console.log('[alpha][omnibox-dbg] activateSuggestion', {
+      source: ctx.source,
+      suggestionKind: s.kind,
+      suggestionTitle: s.title,
+      suggestionQuery: s.query,
+      suggestionUrl: s.url,
+      decision,
+    });
+  }
   if (decision.action === 'switch') {
     ctx.switchTab(decision.tabId);
   } else if (decision.action === 'navigate') {

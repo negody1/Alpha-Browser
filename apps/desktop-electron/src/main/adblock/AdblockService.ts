@@ -35,6 +35,9 @@ function selectedEngineMode(): 'ghostery' | 'legacy' {
   return process.env.ALPHA_ADBLOCK_ENGINE === 'legacy' ? 'legacy' : 'ghostery';
 }
 
+/** ALPHA_DEBUG_ADBLOCK=1 — verbose adblock diagnostics. */
+const ADBLOCK_DBG = (): boolean => process.env.ALPHA_DEBUG_ADBLOCK === '1';
+
 /**
  * PART 3 — URL tracking cleanup. Strips ONLY these well-known tracking params.
  * Everything else (oauth `code`/`state`, payment ids, session tokens, ...) is
@@ -274,6 +277,15 @@ export class AdblockService {
       if (tab) {
         const next = (this.blockedByTab.get(tab.id) ?? 0) + 1;
         this.blockedByTab.set(tab.id, next);
+      }
+      if (ADBLOCK_DBG()) {
+        console.log('[alpha][adblock-dbg] network BLOCK', {
+          engine: this.engineMode,
+          type: resourceType,
+          url: details.url.slice(0, 90),
+          tabTotal: tab ? this.blockedByTab.get(tab.id) : undefined,
+          total: this.blockedTotal,
+        });
       }
       this.scheduleBroadcast();
       callback({ cancel: true });

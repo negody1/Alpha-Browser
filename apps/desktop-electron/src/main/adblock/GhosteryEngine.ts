@@ -5,6 +5,10 @@ import { join } from 'node:path';
 import { createRequire } from 'node:module';
 import { ElectronBlocker, fromElectronDetails } from '@ghostery/adblocker-electron';
 
+/** ALPHA_DEBUG_ADBLOCK=1 — verbose adblock diagnostics. */
+const ADBLOCK_DBG = (): boolean => process.env.ALPHA_DEBUG_ADBLOCK === '1';
+const shortUrl = (u: unknown): string => (typeof u === 'string' ? u.slice(0, 80) : String(u));
+
 /** Gate callbacks injected by AdblockService so cosmetics respect global + per-site state. */
 export interface CosmeticGate {
   /** Global adblock enabled? */
@@ -98,7 +102,25 @@ export class GhosteryEngine {
       ipcMain.removeHandler('@ghostery/adblocker/inject-cosmetic-filters');
       ipcMain.handle('@ghostery/adblocker/inject-cosmetic-filters', (event, url, msg) => {
         try {
-          if (!allowedPage(url)) return Promise.resolve();
+          if (!allowedPage(url)) {
+            if (ADBLOCK_DBG()) {
+              console.log('[alpha][adblock-dbg] cosmetic SKIP', {
+                url: shortUrl(url),
+                reason: typeof url === 'string' && /^https?:/i.test(url) ? 'disabled-or-off' : 'non-web-page',
+              });
+            }
+            return Promise.resolve();
+          }
+          if (ADBLOCK_DBG()) {
+            const m = (msg ?? {}) as { ids?: unknown[]; classes?: unknown[]; hrefs?: unknown[]; lifecycle?: string };
+            console.log('[alpha][adblock-dbg] cosmetic INJECT', {
+              url: shortUrl(url),
+              lifecycle: m.lifecycle,
+              ids: m.ids?.length ?? 0,
+              classes: m.classes?.length ?? 0,
+              hrefs: m.hrefs?.length ?? 0,
+            });
+          }
           return blocker.onInjectCosmeticFilters(event, url as string, msg);
         } catch {
           return Promise.resolve();
@@ -249,6 +271,21 @@ export class GhosteryEngine {
         }
       }
       if (parts.length === 0) return; // offline — keep current engine
+      // Re-merge the bundled supplement so it survives the refresh.
+      for (const sp of [
+        join(process.resourcesPath ?? '', 'adblock', 'alpha-supplement.txt'),
+        join(app.getAppPath(), 'resources', 'adblock', 'alpha-supplement.txt'),
+        join(__dirname, '../../../../packages/core-adblock/assets/alpha-supplement.txt'),
+      ]) {
+        try {
+          if (existsSync(sp)) {
+            parts.push(readFileSync(sp, 'utf8'));
+            break;
+          }
+        } catch {
+          /* ignore */
+        }
+      }
       const fresh = ElectronBlocker.parse(parts.join('\n'), {
         enableCompression: true,
         loadNetworkFilters: true,

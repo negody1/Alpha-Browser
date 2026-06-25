@@ -232,6 +232,10 @@ export interface AlphaApi {
     onPicked: (listener: (index: number) => void) => () => void;
     onHovered: (listener: (index: number) => void) => () => void;
   };
+  debug: {
+    omnibox: boolean;
+    adblock: boolean;
+  };
 }
 
 const alphaApi: AlphaApi = {
@@ -561,6 +565,12 @@ const alphaApi: AlphaApi = {
       ipcRenderer.on('omnibox:hovered', handler);
       return () => ipcRenderer.removeListener('omnibox:hovered', handler);
     },
+  },
+  // Debug flags read from the main process env at preload time (renderer can't
+  // read process.env directly). Used to gate verbose omnibox/adblock logging.
+  debug: {
+    omnibox: process.env.ALPHA_DEBUG_OMNIBOX === '1',
+    adblock: process.env.ALPHA_DEBUG_ADBLOCK === '1',
   },
 };
 
