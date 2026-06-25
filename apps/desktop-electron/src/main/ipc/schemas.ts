@@ -15,9 +15,11 @@ export const createTabPayload = z.object({
 export const navigateTabPayload = z.object({
   tabId: z.string().uuid(),
   input: z.string().max(2048),
-  // Optional omnibox provenance — only used for ALPHA_DEBUG_OMNIBOX logging.
+  // Optional omnibox provenance — used for the debug overlay + logging.
   source: z.enum(['toolbar', 'home', 'ntp']).optional(),
   suggestionKind: z.string().max(32).optional(),
+  handler: z.string().max(64).optional(),
+  debugStack: z.string().max(8192).optional(),
 });
 
 export const resolveUrlPayload = z.object({

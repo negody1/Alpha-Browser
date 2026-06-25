@@ -12,6 +12,7 @@ import { RoutingBanners } from './RoutingBanners';
 import { Toolbar } from './Toolbar';
 import { PasswordsPrompt } from './PasswordsPrompt';
 import { UpdateModal } from './UpdateModal';
+import { DebugOverlay } from '../debug/DebugOverlay';
 
 export function BrowserShell() {
   useBrowserSync();
@@ -31,6 +32,7 @@ export function BrowserShell() {
 
   return (
     <div className="shell-root">
+      <DebugOverlay />
       <Sidebar />
       <div className="shell-main">
         <div className="shell-chrome-stack" ref={chromeStackRef}>

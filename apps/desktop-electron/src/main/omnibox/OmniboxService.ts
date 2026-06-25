@@ -5,7 +5,7 @@ import type {
   TabSnapshot,
 } from '@alpha/shared-types';
 import { normalizeAggregateUrl } from '@alpha/core-history';
-import { resolveNavigationUrl } from '../navigation';
+import { resolveNavigationUrl, isQuerylessGoogle } from '../navigation';
 
 export const OMNIBOX_DEFAULT_LIMIT = 8;
 export const OMNIBOX_MAX_LIMIT = 20;
@@ -124,6 +124,9 @@ export class OmniboxService {
     let inlineAssigned = false;
     for (const c of candidates) {
       if (out.length >= cap) break;
+      // Never surface a query-less Google (homepage/webhp) as a clickable
+      // suggestion — picking it would look like a search that "opens blank Google".
+      if (isQuerylessGoogle(c.url)) continue;
       const key = this.dedupeKey(c.url);
       if (key && seen.has(key)) continue;
       if (key) seen.add(key);

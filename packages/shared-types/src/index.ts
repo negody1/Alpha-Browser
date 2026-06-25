@@ -347,6 +347,31 @@ export type OmniboxSuggestionKind = 'open-tab' | 'history' | 'shortcut' | 'searc
 /** Where a suggestion activation originated — for debug logging + parity checks. */
 export type OmniboxSource = 'toolbar' | 'home' | 'ntp';
 
+/** One captured navigation, surfaced in the in-app debug overlay. */
+export interface NavDebugEntry {
+  ts: number;
+  source: string;
+  suggestionKind: string;
+  handler: string;
+  rawInput: string;
+  finalTarget: string;
+  guard: string;
+  isQuerylessGoogle: boolean;
+  stack: string;
+}
+
+/** AdBlock diagnostics for the in-app debug overlay. */
+export interface AdblockDebugStatus {
+  engine: 'ghostery' | 'legacy';
+  cosmeticEnabled: boolean;
+  networkBlockedTotal: number;
+  cosmeticInjectCount: number;
+  cosmeticForSite: { cssBytes: number; selectors: number; scriptlets: number; extended: number } | null;
+  siteHost: string | null;
+  siteEnabled: boolean;
+  globalEnabled: boolean;
+}
+
 export interface OmniboxSuggestion {
   kind: OmniboxSuggestionKind;
   /** Display title (falls back to host/url when unknown). */

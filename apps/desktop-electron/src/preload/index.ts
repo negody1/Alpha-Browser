@@ -18,6 +18,8 @@ import type {
   ProxyDiagnosticsSnapshot,
   AccessDetails,
   ActivationState,
+  NavDebugEntry,
+  AdblockDebugStatus,
 } from '@alpha/shared-types';
 
 export interface AlphaApi {
@@ -63,7 +65,7 @@ export interface AlphaApi {
     navigate: (
       tabId: string,
       input: string,
-      meta?: { source?: 'toolbar' | 'home' | 'ntp'; suggestionKind?: string },
+      meta?: { source?: 'toolbar' | 'home' | 'ntp'; suggestionKind?: string; handler?: string },
     ) => Promise<BrowserStateSnapshot>;
     goBack: (tabId?: string) => Promise<BrowserStateSnapshot>;
     goForward: (tabId?: string) => Promise<BrowserStateSnapshot>;
@@ -235,6 +237,9 @@ export interface AlphaApi {
   debug: {
     omnibox: boolean;
     adblock: boolean;
+    navLog: () => Promise<NavDebugEntry[]>;
+    navClear: () => Promise<boolean>;
+    adblockStatus: (url?: string) => Promise<AdblockDebugStatus | null>;
   };
 }
 
@@ -319,6 +324,10 @@ const alphaApi: AlphaApi = {
         input,
         source: meta?.source,
         suggestionKind: meta?.suggestionKind,
+        handler: meta?.handler,
+        // Universal interceptor: capture the renderer call stack for EVERY
+        // navigation, so any handler that produces a bad target is identified.
+        debugStack: new Error('nav-trace').stack ?? '',
       }) as Promise<BrowserStateSnapshot>,
     goBack: (tabId) =>
       ipcRenderer.invoke('tabs:goBack', { tabId }) as Promise<BrowserStateSnapshot>,
@@ -567,10 +576,14 @@ const alphaApi: AlphaApi = {
     },
   },
   // Debug flags read from the main process env at preload time (renderer can't
-  // read process.env directly). Used to gate verbose omnibox/adblock logging.
+  // read process.env directly) + the debug-overlay data accessors.
   debug: {
     omnibox: process.env.ALPHA_DEBUG_OMNIBOX === '1',
     adblock: process.env.ALPHA_DEBUG_ADBLOCK === '1',
+    navLog: () => ipcRenderer.invoke('alpha:debug:navLog') as Promise<NavDebugEntry[]>,
+    navClear: () => ipcRenderer.invoke('alpha:debug:navClear') as Promise<boolean>,
+    adblockStatus: (url?: string) =>
+      ipcRenderer.invoke('alpha:debug:adblockStatus', { url }) as Promise<AdblockDebugStatus | null>,
   },
 };
 

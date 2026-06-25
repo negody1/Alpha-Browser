@@ -29,7 +29,7 @@ export function NewTabPage() {
 
   async function navigate(input: string) {
     if (!activeTabId || !input.trim()) return;
-    await window.alpha.tabs.navigate(activeTabId, input, { source: 'home' });
+    await window.alpha.tabs.navigate(activeTabId, input, { source: 'home', handler: 'NewTabPage.navigate' });
   }
 
   // Single shared activation path (search → query, url/history → url, tab → switch).

@@ -2,6 +2,7 @@ import { app, ipcMain } from 'electron';
 import type { z } from 'zod';
 import type { TabManager } from '../tabs/TabManager';
 import { resolveNavigationUrl, isQuerylessGoogle, forceSearchUrl } from '../navigation';
+import { recordNav } from '../debug/navDebug';
 import { navMark, navLog } from '../nav-timings';
 import {
   createTabPayload,
@@ -64,6 +65,7 @@ export function registerTabsIpc(getManager: () => TabManager | null): void {
     navMark(data.tabId);
     navLog(data.tabId, 'ipc:navigate-received', { input: data.input });
     let resolved = resolveNavigationUrl(data.input);
+    let guardOutcome = 'none';
 
     // RUNTIME GUARD: a SEARCH suggestion must never land on a query-less Google.
     // It only triggers for kind 'search' — a user who typed or picked a google.com
@@ -73,28 +75,28 @@ export function registerTabsIpc(getManager: () => TabManager | null): void {
     if (data.suggestionKind === 'search' && isQuerylessGoogle(resolved)) {
       const q = data.input.trim();
       if (q && !/^https?:\/\//i.test(q) && !isQuerylessGoogle(q)) {
-        const fixed = forceSearchUrl(q);
-        console.error('[alpha][omnibox] GUARD rewrote query-less Google -> search', {
-          source: data.source, input: data.input, was: resolved, now: fixed,
-        });
-        resolved = fixed;
+        resolved = forceSearchUrl(q);
+        guardOutcome = 'rewrote';
       } else {
-        console.error('[alpha][omnibox] GUARD blocked query-less Google (no recoverable query)', {
-          source: data.source, input: data.input, resolved,
-        });
-        return manager.getState();
+        guardOutcome = 'blocked';
       }
     }
 
-    if (process.env.ALPHA_DEBUG_OMNIBOX === '1') {
-      // Full diagnostics for the omnibox/Home/NTP search path.
-      console.log('[alpha][omnibox-dbg] navigate', {
-        fn: 'tabs:navigate',
-        source: data.source ?? '(direct)',
-        suggestionKind: data.suggestionKind ?? '(none)',
-        rawInput: data.input,
-        finalTarget: resolved,
-      });
+    // Record EVERY navigation (with the renderer call stack) for the debug overlay.
+    recordNav({
+      ts: Date.now(),
+      source: data.source ?? '(direct)',
+      suggestionKind: data.suggestionKind ?? '(none)',
+      handler: data.handler ?? '(unknown)',
+      rawInput: data.input,
+      finalTarget: guardOutcome === 'blocked' ? '(blocked)' : resolved,
+      guard: guardOutcome,
+      isQuerylessGoogle: isQuerylessGoogle(resolved),
+      stack: data.debugStack ?? '',
+    });
+
+    if (guardOutcome === 'blocked') {
+      return manager.getState();
     }
     if (!resolved) {
       return manager.getState();

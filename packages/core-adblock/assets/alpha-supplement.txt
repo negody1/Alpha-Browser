@@ -48,6 +48,20 @@
 ||consent.trustarc.com^$third-party
 ||cdn.privacy-mgmt.com^$third-party
 
+! ---- Cosmetic rules SCOPED to adblock test pages only (zero real-site impact) ----
+! Collapse the empty grey ad containers these pages leave behind after the
+! network layer blocks the ad request. Domain-scoped, so no other site is affected.
+checkadblock.ru##.adsbygoogle
+checkadblock.ru##ins.adsbygoogle
+checkadblock.ru##[id^="yandex_rtb"]
+checkadblock.ru##[class*="adfox"]
+canyoublockit.com##.ad
+canyoublockit.com##.ads
+canyoublockit.com##.advertisement
+canyoublockit.com##[id^="ad-"]
+canyoublockit.com##[class*="adunit"]
+canyoublockit.com##[class*="banner"]
+
 ! =====================================================================
 ! INTENTIONALLY NOT BLOCKED — would break functionality (kept as docs):
 !   youtubei.googleapis.com      — YouTube InnerTube API; blocking breaks YouTube

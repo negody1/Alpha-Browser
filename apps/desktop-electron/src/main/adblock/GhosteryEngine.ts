@@ -40,6 +40,7 @@ export class GhosteryEngine {
   private blocker: ElectronBlocker | null = null;
   private loadedFrom: string | null = null;
   private cosmeticEnabled = false;
+  private injectCount = 0;
   private readonly cosmeticSessions = new WeakSet<Session>();
 
   isReady(): boolean {
@@ -48,6 +49,37 @@ export class GhosteryEngine {
 
   cosmeticsActive(): boolean {
     return this.cosmeticEnabled;
+  }
+
+  /** Number of cosmetic-inject IPC calls served (proves the preload pipeline is live). */
+  getInjectCount(): number {
+    return this.injectCount;
+  }
+
+  /** Cosmetic rules AVAILABLE for a page (generic + hostname), for the debug overlay. */
+  getCosmeticStatsForUrl(url: string): { cssBytes: number; selectors: number; scriptlets: number; extended: number } | null {
+    if (!this.blocker) return null;
+    try {
+      const hostname = new URL(url).hostname;
+      const r = this.blocker.getCosmeticsFilters({
+        url,
+        hostname,
+        domain: hostname,
+        getBaseRules: true,
+        getInjectionRules: true,
+      }) as { styles?: string; scripts?: string[]; extended?: unknown[] };
+      const styles = r.styles ?? '';
+      // Selectors ≈ comma-separated groups in the hiding stylesheet.
+      const selectors = styles ? styles.split(',').length : 0;
+      return {
+        cssBytes: styles.length,
+        selectors,
+        scriptlets: (r.scripts ?? []).length,
+        extended: (r.extended ?? []).length,
+      };
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -111,6 +143,7 @@ export class GhosteryEngine {
             }
             return Promise.resolve();
           }
+          this.injectCount += 1;
           if (ADBLOCK_DBG()) {
             const m = (msg ?? {}) as { ids?: unknown[]; classes?: unknown[]; hrefs?: unknown[]; lifecycle?: string };
             console.log('[alpha][adblock-dbg] cosmetic INJECT', {
@@ -119,6 +152,7 @@ export class GhosteryEngine {
               ids: m.ids?.length ?? 0,
               classes: m.classes?.length ?? 0,
               hrefs: m.hrefs?.length ?? 0,
+              injectCount: this.injectCount,
             });
           }
           return blocker.onInjectCosmeticFilters(event, url as string, msg);

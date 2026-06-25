@@ -3580,3 +3580,43 @@ body {
 .settings-advanced > summary:hover { color: rgba(255, 255, 255, 0.85); }
 .settings-advanced > summary::before { content: '▸ '; }
 .settings-advanced[open] > summary::before { content: '▾ '; }
+
+/* ── Debug overlay (Ctrl+Shift+D) ───────────────────────────────────────── */
+.alpha-debug-overlay {
+  position: fixed;
+  top: 48px;
+  right: 12px;
+  width: 460px;
+  max-height: 80vh;
+  overflow: auto;
+  z-index: 99999;
+  background: rgba(14, 17, 22, 0.97);
+  color: #e6edf3;
+  border: 1px solid #30363d;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: 12px/1.45 ui-monospace, "Cascadia Code", Consolas, monospace;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  -webkit-app-region: no-drag;
+}
+.alpha-debug-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.alpha-debug-head strong { font-size: 13px; }
+.alpha-debug-hint { color: #8b949e; margin-right: auto; }
+.alpha-debug-head button {
+  background: #21262d; color: #e6edf3; border: 1px solid #30363d;
+  border-radius: 6px; padding: 3px 8px; cursor: pointer; font: inherit;
+}
+.alpha-debug-head button:hover { background: #30363d; }
+.alpha-debug-section { margin-top: 8px; border-top: 1px solid #21262d; padding-top: 6px; }
+.alpha-debug-title { color: #58a6ff; font-weight: 600; margin-bottom: 4px; }
+.alpha-debug-kv { list-style: none; margin: 0; padding: 0; }
+.alpha-debug-kv li { padding: 1px 0; }
+.alpha-debug-nav { list-style: none; margin: 0; padding: 0; }
+.alpha-debug-nav li { padding: 5px 0; border-bottom: 1px dashed #21262d; word-break: break-all; }
+.alpha-debug-nav li.bad-row { background: rgba(248, 81, 73, 0.12); }
+.alpha-debug-src { color: #d2a8ff; }
+.alpha-debug-guard { color: #f0883e; }
+.alpha-debug-empty { color: #8b949e; font-style: italic; }
+.alpha-debug-overlay code { background: #161b22; padding: 0 3px; border-radius: 3px; }
+.alpha-debug-overlay code.ok, .alpha-debug-overlay b.ok { color: #3fb950; }
+.alpha-debug-overlay code.bad, .alpha-debug-overlay b.bad { color: #f85149; }

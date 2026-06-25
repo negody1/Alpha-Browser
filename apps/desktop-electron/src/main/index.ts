@@ -13,6 +13,7 @@ import { registerTabsIpc } from './ipc/register-tabs';
 import { registerShellIpc } from './ipc/register-shell';
 import { registerOverlayIpc, registerShellOverlayHandlers, registerShellRenameIpc } from './ipc/register-overlay';
 import { registerAdblockIpc } from './ipc/register-adblock';
+import { registerDebugIpc } from './ipc/register-debug';
 import { registerPasswordsIpc } from './ipc/register-passwords';
 import { registerPasswordsGuestIpc } from './ipc/register-passwords-guest';
 import { registerShortcutsIpc } from './ipc/register-shortcuts';
@@ -559,6 +560,7 @@ app.whenReady().then(() => {
   registerHistoryIpc(() => historyStore, () => tabManager?.broadcastHistory());
   registerDownloadsIpc(() => downloadsService);
   registerAdblockIpc(() => adblockService);
+  registerDebugIpc(() => adblockService);
   registerPasswordsIpc(
     () => passwordService,
     () => {

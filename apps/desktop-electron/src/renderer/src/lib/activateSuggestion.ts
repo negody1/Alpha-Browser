@@ -39,7 +39,11 @@ export function resolveSuggestionTarget(s: OmniboxSuggestion): SuggestionAction 
 export interface ActivationContext {
   source: OmniboxSource;
   activeTabId: string | null;
-  navigate: (tabId: string, input: string, meta: { source: OmniboxSource; suggestionKind: string }) => void;
+  navigate: (
+    tabId: string,
+    input: string,
+    meta: { source: OmniboxSource; suggestionKind: string; handler: string },
+  ) => void;
   switchTab: (tabId: string) => void;
 }
 
@@ -62,7 +66,11 @@ export function activateSuggestion(s: OmniboxSuggestion, ctx: ActivationContext)
     ctx.switchTab(decision.tabId);
   } else if (decision.action === 'navigate') {
     if (!ctx.activeTabId) return { action: 'none' };
-    ctx.navigate(ctx.activeTabId, decision.target, { source: ctx.source, suggestionKind: s.kind });
+    ctx.navigate(ctx.activeTabId, decision.target, {
+      source: ctx.source,
+      suggestionKind: s.kind,
+      handler: 'activateSuggestion',
+    });
   }
   return decision;
 }

@@ -141,6 +141,31 @@ export class AdblockService {
     return { block: this.engine.match({ url, hostname: host, resourceType }).block };
   }
 
+  /** Rich status for the in-app debug overlay (ALPHA adblock diagnostics). */
+  getDebugStatus(activeUrl?: string): {
+    engine: 'ghostery' | 'legacy';
+    cosmeticEnabled: boolean;
+    networkBlockedTotal: number;
+    cosmeticInjectCount: number;
+    cosmeticForSite: { cssBytes: number; selectors: number; scriptlets: number; extended: number } | null;
+    siteHost: string | null;
+    siteEnabled: boolean;
+    globalEnabled: boolean;
+  } {
+    const host = activeUrl ? normalizeDomain((() => { try { return new URL(activeUrl).hostname; } catch { return ''; } })()) : null;
+    const disabled = host ? this.store.listDisabledDomains().includes(host) : false;
+    return {
+      engine: this.engineMode,
+      cosmeticEnabled: this.ghostery?.cosmeticsActive() ?? false,
+      networkBlockedTotal: this.blockedTotal,
+      cosmeticInjectCount: this.ghostery?.getInjectCount() ?? 0,
+      cosmeticForSite: activeUrl ? (this.ghostery?.getCosmeticStatsForUrl(activeUrl) ?? null) : null,
+      siteHost: host || null,
+      siteEnabled: !disabled,
+      globalEnabled: this.store.isEnabled(),
+    };
+  }
+
   getState(): AdblockStateSnapshot {
     return {
       enabled: this.store.isEnabled(),

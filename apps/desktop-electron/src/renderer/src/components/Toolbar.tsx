@@ -158,7 +158,7 @@ export function Toolbar() {
     if (!activeTabId || !draft.trim()) {
       return;
     }
-    await window.alpha.tabs.navigate(activeTabId, draft, { source: 'toolbar' });
+    await window.alpha.tabs.navigate(activeTabId, draft, { source: 'toolbar', handler: 'Toolbar.submitRaw' });
     closeOmnibox();
     inputRef.current?.blur();
   }
