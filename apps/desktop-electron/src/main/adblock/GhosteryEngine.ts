@@ -1,8 +1,17 @@
-import { app } from 'electron';
+import { app, ipcMain, type Session } from 'electron';
 import type { OnBeforeRequestListenerDetails } from 'electron';
 import { existsSync, readFileSync, writeFileSync, mkdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { createRequire } from 'node:module';
 import { ElectronBlocker, fromElectronDetails } from '@ghostery/adblocker-electron';
+
+/** Gate callbacks injected by AdblockService so cosmetics respect global + per-site state. */
+export interface CosmeticGate {
+  /** Global adblock enabled? */
+  isEnabled: () => boolean;
+  /** Is this host on the per-site disable list? */
+  isDomainDisabled: (host: string) => boolean;
+}
 
 export interface GhosteryDecision {
   /** Cancel the request entirely. */
@@ -26,9 +35,119 @@ export interface GhosteryDecision {
 export class GhosteryEngine {
   private blocker: ElectronBlocker | null = null;
   private loadedFrom: string | null = null;
+  private cosmeticEnabled = false;
+  private readonly cosmeticSessions = new WeakSet<Session>();
 
   isReady(): boolean {
     return this.blocker !== null;
+  }
+
+  cosmeticsActive(): boolean {
+    return this.cosmeticEnabled;
+  }
+
+  /**
+   * Enable cosmetic filtering + scriptlet injection + CSP rules on the given
+   * sessions WITHOUT taking over onBeforeRequest (AdblockService keeps that for
+   * per-site disable, stats, URL cleanup and the mainFrame guard).
+   *
+   * Electron 33 has no registerPreloadScript, so we use setPreloads. Every hook
+   * is bulletproof: it only ever injects into http(s) pages that are not
+   * per-site-disabled (so the chrome shell — file:// — PDF viewer and internal
+   * pages are never touched), and onHeadersReceived always calls its callback so
+   * a response can never hang. Kill switch: ALPHA_ADBLOCK_COSMETIC=0.
+   */
+  enableCosmetics(sessions: Session[], gate: CosmeticGate): void {
+    if (!this.blocker) return;
+    if (process.env.ALPHA_ADBLOCK_COSMETIC === '0') {
+      console.log('[alpha][adblock] cosmetic filtering disabled by ALPHA_ADBLOCK_COSMETIC=0');
+      return;
+    }
+    const blocker = this.blocker;
+
+    let preloadPath: string;
+    try {
+      // The preload is a TRANSITIVE dep of adblocker-electron, so resolve it
+      // THROUGH that package (which is a direct dep) — mirrors Ghostery's own
+      // PRELOAD_PATH and works under pnpm's nested node_modules.
+      const req = createRequire(__filename);
+      const electronPkg = req.resolve('@ghostery/adblocker-electron');
+      preloadPath = createRequire(electronPkg).resolve('@ghostery/adblocker-electron-preload');
+    } catch (err) {
+      console.warn('[alpha][adblock] cosmetic preload unresolved; cosmetics off', { err: String(err) });
+      return;
+    }
+
+    const hostOf = (url: string): string => {
+      try {
+        return new URL(url).hostname.toLowerCase();
+      } catch {
+        return '';
+      }
+    };
+    // Only ever inject into real web pages that are adblock-enabled and not
+    // per-site-disabled. Non-http (file/alpha/devtools/data/about) → never.
+    const allowedPage = (url: unknown): boolean => {
+      if (typeof url !== 'string' || !/^https?:/i.test(url)) return false;
+      if (!gate.isEnabled()) return false;
+      const h = hostOf(url);
+      return !(h && gate.isDomainDisabled(h));
+    };
+
+    try {
+      ipcMain.removeHandler('@ghostery/adblocker/inject-cosmetic-filters');
+      ipcMain.handle('@ghostery/adblocker/inject-cosmetic-filters', (event, url, msg) => {
+        try {
+          if (!allowedPage(url)) return Promise.resolve();
+          return blocker.onInjectCosmeticFilters(event, url as string, msg);
+        } catch {
+          return Promise.resolve();
+        }
+      });
+      ipcMain.removeHandler('@ghostery/adblocker/is-mutation-observer-enabled');
+      ipcMain.handle('@ghostery/adblocker/is-mutation-observer-enabled', (event) => {
+        try {
+          // Don't run the DOM mutation observer in the shell / PDF / internal pages.
+          const senderUrl = event.sender?.getURL?.() ?? '';
+          if (!allowedPage(senderUrl)) return Promise.resolve(false);
+          return blocker.onIsMutationObserverEnabled(event);
+        } catch {
+          return Promise.resolve(false);
+        }
+      });
+    } catch (err) {
+      console.warn('[alpha][adblock] cosmetic IPC wiring failed; cosmetics off', { err: String(err) });
+      return;
+    }
+
+    for (const session of sessions) {
+      if (this.cosmeticSessions.has(session)) continue;
+      try {
+        const existing = session.getPreloads();
+        if (!existing.includes(preloadPath)) session.setPreloads([...existing, preloadPath]);
+        // CSP / scriptlet header injection. Always calls callback (no hang) and
+        // only acts on main/subFrame of allowed pages.
+        session.webRequest.onHeadersReceived({ urls: ['<all_urls>'] }, (details, cb) => {
+          try {
+            if (!allowedPage(details.url)) {
+              cb({});
+              return;
+            }
+            blocker.onHeadersReceived(details as never, cb);
+          } catch {
+            cb({});
+          }
+        });
+        this.cosmeticSessions.add(session);
+      } catch (err) {
+        console.warn('[alpha][adblock] cosmetic session wiring failed', { err: String(err) });
+      }
+    }
+    this.cosmeticEnabled = true;
+    console.log('[alpha][adblock] cosmetic + scriptlet + CSP enabled', {
+      sessions: sessions.length,
+      preload: preloadPath,
+    });
   }
 
   /** Candidate paths for the serialized engine, freshest (userData) first. */

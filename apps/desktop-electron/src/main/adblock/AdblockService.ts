@@ -279,6 +279,18 @@ export class AdblockService {
       callback({ cancel: true });
       });
     }
+
+    // Cosmetic + scriptlet + CSP injection (separate hooks; onBeforeRequest above
+    // stays ours for per-site disable, stats, URL cleanup and the mainFrame guard).
+    if (this.ghostery) {
+      this.ghostery.enableCosmetics(sessions, {
+        isEnabled: () => this.store.isEnabled(),
+        isDomainDisabled: (host) => {
+          const d = normalizeDomain(host) ?? host;
+          return this.store.listDisabledDomains().includes(d);
+        },
+      });
+    }
   }
 
   /**

@@ -1,21 +1,20 @@
 #!/usr/bin/env node
 /**
- * Phase 0.1.3-A — build a serialized ABP-compatible adblock engine.
+ * Phase 0.1.3 — build a serialized ABP-compatible adblock engine.
  *
- * Fetches the standard filter lists, parses them once with @ghostery/adblocker
- * (the pure-JS core — the Electron wrapper can't be imported in plain Node), and
- * SERIALIZES the result to:
+ * Uses @ghostery/adblocker FiltersEngine.fromLists() (the pure-JS core — the
+ * Electron wrapper can't be imported in plain Node) which fetches the filter
+ * lists AND the redirect/scriptlet resources, then SERIALIZES everything to:
  *   apps/desktop-electron/resources/adblock/engine.bin
  *
  * At runtime ElectronBlocker.deserialize(engine.bin) loads it instantly — no
- * list parsing on startup, no network needed on startup. The bytes produced by
- * the core FiltersEngine are format-compatible with ElectronBlocker (it extends
- * FiltersEngine and adds no serialized state).
+ * list parsing and no network on startup. The bytes are format-compatible with
+ * ElectronBlocker (it extends FiltersEngine, adds no serialized state).
  *
- * SAFE-FAIL: each list is fetched independently; a single failing list is
- * skipped. If EVERY list fails (offline), the script exits 0 WITHOUT touching an
- * existing engine.bin, so the last-good engine (or the legacy default-ads.txt
- * fallback) keeps shipping. This runs in dist:win before electron-vite build.
+ * RESILIENT: a per-URL fetch wrapper turns any failing list/resource fetch into
+ * an empty body so one dead mirror can't fail the whole build. If the result is
+ * suspiciously small (everything failed, e.g. offline) an EXISTING engine.bin is
+ * kept (last-good) and the script still exits 0 — runtime falls back safely.
  */
 import { FiltersEngine } from '@ghostery/adblocker';
 import { existsSync, mkdirSync, writeFileSync, statSync } from 'node:fs';
@@ -28,76 +27,78 @@ const destDir = join(repoRoot, 'apps', 'desktop-electron', 'resources', 'adblock
 const dest = join(destDir, 'engine.bin');
 
 /**
- * Standard, well-vetted lists. These are safe for a general browser: they target
- * ads/trackers/annoyances and do NOT block document (mainFrame) loads, Google,
- * YouTube playback, Telegram, login pages, PDF, or downloads.
+ * Full ABP/uBO/AdGuard list set. All are safe for a general browser: ads,
+ * trackers, annoyances, privacy, badware. None block document (mainFrame) loads
+ * or YouTube playback / Google / Telegram / login / PDF / downloads.
  */
 const LISTS = [
-  ['EasyList', 'https://easylist.to/easylist/easylist.txt'],
-  ['EasyPrivacy', 'https://easylist.to/easylist/easyprivacy.txt'],
-  ['PeterLowe', 'https://pgl.yoyo.org/adservers/serverlist.php?hostformat=adblockplus&showintro=0&mimetype=plaintext'],
-  ['Fanboy-Annoyance', 'https://easylist.to/easylist/fanboy-annoyance.txt'],
-  ['Fanboy-Social', 'https://easylist.to/easylist/fanboy-social.txt'],
-  ['AdGuard-Tracking', 'https://filters.adtidy.org/extension/ublock/filters/3.txt'],
+  // EasyList family
+  'https://easylist.to/easylist/easylist.txt',
+  'https://easylist.to/easylist/easyprivacy.txt',
+  'https://easylist.to/easylist/fanboy-annoyance.txt',
+  'https://easylist.to/easylist/fanboy-social.txt',
+  // Peter Lowe
+  'https://pgl.yoyo.org/adservers/serverlist.php?hostformat=adblockplus&showintro=0&mimetype=plaintext',
+  // AdGuard (uBO-format mirrors)
+  'https://filters.adtidy.org/extension/ublock/filters/3.txt', // Tracking Protection
+  'https://filters.adtidy.org/extension/ublock/filters/17.txt', // URL Tracking Protection
+  'https://filters.adtidy.org/extension/ublock/filters/11.txt', // Mobile Ads
+  // uBlock Origin uAssets
+  'https://ublockorigin.github.io/uAssetsCDN/filters/filters.min.txt',
+  'https://ublockorigin.github.io/uAssetsCDN/filters/privacy.min.txt',
+  'https://ublockorigin.github.io/uAssetsCDN/filters/badware.min.txt',
+  'https://ublockorigin.github.io/uAssetsCDN/filters/unbreak.min.txt',
+  'https://ublockorigin.github.io/uAssetsCDN/filters/resource-abuse.min.txt',
+  'https://ublockorigin.github.io/uAssetsCDN/filters/quick-fixes.min.txt',
+  // OISD basic (ABP syntax mirror)
+  'https://abp.oisd.nl/basic/',
 ];
 
-async function fetchText(url) {
+/** Wrap fetch so a single failing URL never rejects the whole build. */
+async function safeFetch(url, opts = {}) {
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 30_000);
+  const t = setTimeout(() => ctrl.abort(), 45_000);
   try {
-    const res = await fetch(url, { signal: ctrl.signal, headers: { 'user-agent': 'AlphaBrowser/adblock-build' } });
+    const res = await fetch(url, { ...opts, signal: ctrl.signal, headers: { 'user-agent': 'AlphaBrowser/adblock-build' } });
     if (!res.ok) throw new Error('HTTP ' + res.status);
-    return await res.text();
+    const text = await res.text();
+    console.log(`[build-adblock] fetched ${url.replace(/^https?:\/\//, '').slice(0, 48)} (${(text.length / 1024).toFixed(0)} KiB)`);
+    return new Response(text, { status: 200 });
+  } catch (err) {
+    console.warn(`[build-adblock] SKIP ${url.replace(/^https?:\/\//, '').slice(0, 48)}: ${err?.message ?? err}`);
+    return new Response('', { status: 200 });
   } finally {
     clearTimeout(t);
   }
 }
 
 async function main() {
-  const parts = [];
-  const active = [];
-  for (const [name, url] of LISTS) {
-    try {
-      const text = await fetchText(url);
-      if (text && text.length > 100) {
-        parts.push('! >>> ' + name + '\n' + text);
-        active.push(name);
-        console.log(`[build-adblock] fetched ${name} (${(text.length / 1024).toFixed(0)} KiB)`);
-      } else {
-        console.warn(`[build-adblock] SKIP ${name}: empty/short response`);
-      }
-    } catch (err) {
-      console.warn(`[build-adblock] SKIP ${name}: ${err?.message ?? err}`);
-    }
-  }
-
-  if (parts.length === 0) {
-    if (existsSync(dest)) {
-      console.warn('[build-adblock] all lists failed; keeping existing engine.bin (last-good).');
-    } else {
-      console.warn('[build-adblock] all lists failed and no existing engine.bin; runtime will use legacy default-ads.txt fallback.');
-    }
-    process.exit(0); // never fail the build over a transient network issue
-  }
-
-  const engine = FiltersEngine.parse(parts.join('\n'), {
+  const engine = await FiltersEngine.fromLists(safeFetch, LISTS, {
     enableCompression: true,
     loadNetworkFilters: true,
-    loadCosmeticFilters: true, // cosmetics are stored; runtime decides whether to inject
+    loadCosmeticFilters: true,
+    loadGenericCosmeticsFilters: true, // generichide / genericblock support
     loadCSPFilters: true,
+    loadExceptionFilters: true,
+    enableMutationObserver: true,
   });
+
   const serialized = engine.serialize();
+
+  // Sanity: a real engine with these lists serializes to several MB. If it is
+  // tiny, the fetches almost certainly all failed — keep the last-good file.
+  if (serialized.length < 512 * 1024 && existsSync(dest)) {
+    console.warn(`[build-adblock] result too small (${serialized.length} B) — keeping existing engine.bin (last-good).`);
+    process.exit(0);
+  }
 
   mkdirSync(destDir, { recursive: true });
   writeFileSync(dest, serialized);
-  const kib = (statSync(dest).size / 1024).toFixed(0);
-  console.log(`[build-adblock] OK: serialized engine -> ${dest} (${kib} KiB)`);
-  console.log(`[build-adblock] lists active: ${active.join(', ')}`);
+  console.log(`[build-adblock] OK: serialized engine -> ${dest} (${(statSync(dest).size / 1024).toFixed(0)} KiB)`);
   process.exit(0);
 }
 
 main().catch((err) => {
   console.error('[build-adblock] unexpected error:', err);
-  // Do not block the build; runtime falls back safely.
-  process.exit(0);
+  process.exit(0); // never block the build; runtime falls back to bundled/legacy
 });
