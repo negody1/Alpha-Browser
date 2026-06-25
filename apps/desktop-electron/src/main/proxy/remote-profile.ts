@@ -67,7 +67,7 @@ function coerceProfile(raw: unknown): RemoteProfile | null {
   const portNum =
     typeof r.port === 'number' ? r.port : Number(typeof r.port === 'string' ? r.port : NaN);
   const serverName =
-    typeof r.serverName === 'string' && r.serverName.trim() ? r.serverName.trim() : 'www.microsoft.com';
+    typeof r.serverName === 'string' && r.serverName.trim() ? r.serverName.trim() : 'www.cloudflare.com';
   const flow =
     typeof r.flow === 'string' && r.flow.trim() ? r.flow.trim() : 'xtls-rprx-vision';
   // Required: server, port, uuid, publicKey. short_id may legitimately be "".
