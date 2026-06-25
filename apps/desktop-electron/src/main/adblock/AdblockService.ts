@@ -1,4 +1,4 @@
-import { type Session, type WebRequestFilter } from 'electron';
+import { type Session, type WebRequestFilter, type OnBeforeRequestListenerDetails } from 'electron';
 import { normalizeDomain } from '@alpha/core-routing';
 import {
   AdblockEngine,
@@ -14,6 +14,26 @@ import { app } from 'electron';
 import { AdblockStore } from '../storage/AdblockStore';
 import type { TabManager } from '../tabs/TabManager';
 import { adblockAdd, timingsEnabled } from '../nav-timings';
+import { GhosteryEngine } from './GhosteryEngine';
+
+/**
+ * Lists kept in sync with scripts/build-adblock-engine.mjs. Used only for the
+ * best-effort 24h background refresh (the bundled engine.bin is the primary
+ * source). Order is informational only.
+ */
+const ADBLOCK_REFRESH_LISTS: ReadonlyArray<readonly [string, string]> = [
+  ['EasyList', 'https://easylist.to/easylist/easylist.txt'],
+  ['EasyPrivacy', 'https://easylist.to/easylist/easyprivacy.txt'],
+  ['PeterLowe', 'https://pgl.yoyo.org/adservers/serverlist.php?hostformat=adblockplus&showintro=0&mimetype=plaintext'],
+  ['Fanboy-Annoyance', 'https://easylist.to/easylist/fanboy-annoyance.txt'],
+  ['Fanboy-Social', 'https://easylist.to/easylist/fanboy-social.txt'],
+  ['AdGuard-Tracking', 'https://filters.adtidy.org/extension/ublock/filters/3.txt'],
+];
+
+/** Engine selection. `ALPHA_ADBLOCK_ENGINE=legacy` forces the old domain engine. */
+function selectedEngineMode(): 'ghostery' | 'legacy' {
+  return process.env.ALPHA_ADBLOCK_ENGINE === 'legacy' ? 'legacy' : 'ghostery';
+}
 
 /**
  * PART 3 — URL tracking cleanup. Strips ONLY these well-known tracking params.
@@ -60,6 +80,9 @@ function mapResourceType(input: string): AdblockResourceType {
 
 export class AdblockService {
   private engine: AdblockEngine;
+  /** ABP engine (Ghostery). Active when loaded; legacy `engine` is the fallback. */
+  private ghostery: GhosteryEngine | null = null;
+  private engineMode: 'ghostery' | 'legacy' = 'legacy';
   private blockedTotal = 0;
   private blockedByTab = new Map<string, number>();
   /** Sessions whose webRequest handler is already attached (idempotency). */
@@ -73,7 +96,46 @@ export class AdblockService {
     private readonly broadcast: () => void,
   ) {
     this.engine = new AdblockEngine({ blockedDomains: [], blockedHostnames: [], urlContains: [] });
+    // Always load the legacy domain list — it is the safety net if the ABP
+    // engine fails to deserialize.
     this.reloadRules();
+    // Prefer the ABP engine unless explicitly forced to legacy.
+    if (selectedEngineMode() === 'ghostery') {
+      const g = new GhosteryEngine();
+      if (g.load()) {
+        this.ghostery = g;
+        this.engineMode = 'ghostery';
+        console.log('[alpha][adblock] engine mode: ghostery (ABP)', { source: g.describe() });
+      } else {
+        this.engineMode = 'legacy';
+        console.warn('[alpha][adblock] ghostery engine unavailable; using legacy domain list');
+      }
+    } else {
+      this.engineMode = 'legacy';
+      console.log('[alpha][adblock] engine mode: legacy (forced by ALPHA_ADBLOCK_ENGINE)');
+    }
+  }
+
+  /** Kick off the best-effort 24h list refresh (call after the window is up). */
+  startBackgroundRefresh(): void {
+    if (!this.ghostery) return;
+    // Defer so it never competes with startup.
+    setTimeout(() => {
+      void this.ghostery?.maybeRefresh(ADBLOCK_REFRESH_LISTS);
+    }, 15_000);
+  }
+
+  /** Resolve the network decision for a request via the active engine. */
+  private decide(
+    details: OnBeforeRequestListenerDetails,
+    host: string,
+    url: string,
+    resourceType: AdblockResourceType,
+  ): { block: boolean; redirectUrl?: string } {
+    if (this.ghostery) {
+      return this.ghostery.match(details);
+    }
+    return { block: this.engine.match({ url, hostname: host, resourceType }).block };
   }
 
   getState(): AdblockStateSnapshot {
@@ -173,19 +235,34 @@ export class AdblockService {
         }
       }
 
+      // Per-site disable: no network filtering, no cosmetic, no cleanup.
       if (domain && this.store.listDisabledDomains().includes(domain)) {
         callback({});
         return;
       }
 
+      // HARD RULE: never block a top-level document. mainFrame requests only ever
+      // get tracking-param cleanup (handled above) — never cancelled — so a page
+      // navigation, PDF, download target or login redirect can never be killed.
+      if (resourceType === 'mainFrame') {
+        callback({});
+        return;
+      }
+
       const matchStart = timingsEnabled() ? performance.now() : 0;
-      const decision = this.engine.match({
-        url: details.url,
-        hostname: host,
-        resourceType,
-      });
+      const decision = this.decide(details, host, details.url, resourceType);
       if (matchStart && typeof details.webContentsId === 'number') {
         adblockAdd(details.webContentsId, performance.now() - matchStart);
+      }
+
+      // Ghostery resource replacement / $removeparam rewrite: redirect instead of
+      // hard-cancel (keeps some scripts happy and strips tracking params).
+      if (decision.redirectUrl && decision.redirectUrl !== details.url) {
+        this.blockedTotal += 1;
+        if (tab) this.blockedByTab.set(tab.id, (this.blockedByTab.get(tab.id) ?? 0) + 1);
+        this.scheduleBroadcast();
+        callback({ redirectURL: decision.redirectUrl });
+        return;
       }
 
       if (!decision.block) {

@@ -354,6 +354,8 @@ function createWindow(): BrowserWindow {
   });
   tabManager.attachAdblock(adblockService);
   adblockService.register(sessionRegistry?.partitions() ?? [session.defaultSession]);
+  // Best-effort ABP list refresh (≤ once/24h), deferred so it never slows startup.
+  adblockService.startBackgroundRefresh();
   overlayManager = new OverlayWindowManager(
     () => tabManager,
     () => adblockService,

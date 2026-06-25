@@ -19,5 +19,8 @@
   "engines": {
     "node": ">=20"
   },
-  "packageManager": "pnpm@9.15.0"
+  "packageManager": "pnpm@9.15.0",
+  "devDependencies": {
+    "@ghostery/adblocker": "^2.18.0"
+  }
 }

@@ -18,7 +18,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "lint": "echo \"lint pending\"",
     "sync:resources": "node ../../scripts/sync-adblock-assets.mjs",
-    "dist:win": "node ../../scripts/sync-adblock-assets.mjs && electron-vite build && electron-builder --win"
+    "build:adblock-engine": "node ../../scripts/build-adblock-engine.mjs",
+    "dist:win": "node ../../scripts/sync-adblock-assets.mjs && node ../../scripts/build-adblock-engine.mjs && electron-vite build && electron-builder --win"
   },
   "dependencies": {
     "@alpha/core-adblock": "workspace:*",
@@ -27,6 +28,7 @@
     "@alpha/core-passwords": "workspace:*",
     "@alpha/core-routing": "workspace:*",
     "@alpha/shared-types": "workspace:*",
+    "@ghostery/adblocker-electron": "^2.18.0",
     "electron-store": "^8.2.0",
     "lucide-react": "^0.469.0",
     "react": "^18.3.1",
@@ -35,6 +37,7 @@
     "zustand": "^5.0.3"
   },
   "devDependencies": {
+    "@ghostery/adblocker": "^2.18.0",
     "@types/node": "^20.17.10",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",

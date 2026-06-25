@@ -6,7 +6,11 @@ settings:
 
 importers:
 
-  .: {}
+  .:
+    devDependencies:
+      '@ghostery/adblocker':
+        specifier: ^2.18.0
+        version: 2.18.0
 
   apps/desktop-electron:
     dependencies:
@@ -28,6 +32,9 @@ importers:
       '@alpha/shared-types':
         specifier: workspace:*
         version: link:../../packages/shared-types
+      '@ghostery/adblocker-electron':
+        specifier: ^2.18.0
+        version: 2.18.0(electron@33.4.11)
       electron-store:
         specifier: ^8.2.0
         version: 8.2.0
@@ -47,6 +54,9 @@ importers:
         specifier: ^5.0.3
         version: 5.0.13(@types/react@18.3.29)(react@18.3.1)
     devDependencies:
+      '@ghostery/adblocker':
+        specifier: ^2.18.0
+        version: 2.18.0
       '@types/node':
         specifier: ^20.17.10
         version: 20.19.41
@@ -426,6 +436,28 @@ packages:
   '@gar/promisify@1.1.3':
     resolution: {integrity: sha512-k2Ty1JcVojjJFwrg/ThKi2ujJ7XNLYaFGNB/bWT9wGR+oSMJHMa5w+CUq6p/pVrKeNNgA7pCqEcjSnHVoqJQFw==}
 
+  '@ghostery/adblocker-content@2.18.0':
+    resolution: {integrity: sha512-hO+SHBKzx8PBqppjO6Haj0d4h+4RUQ+0tpVZjs9wUgxLKZlvvYzlQ9sAHilzIT5ixSn+8LSlrYm+ngf2ugH9XQ==}
+
+  '@ghostery/adblocker-electron-preload@2.18.0':
+    resolution: {integrity: sha512-dtUmIAFfiZowbW+NDQtUy+sceQYl4XfJhnKycBWEWeljQ67EVQgFKbfbkEK4Tr3jmP+GxEUp8dYKzwT05b3gdw==}
+    peerDependencies:
+      electron: '>11'
+
+  '@ghostery/adblocker-electron@2.18.0':
+    resolution: {integrity: sha512-q8tvkJ247ysebswlT+Ak2OrP4rWqI1Ql4BePR6cbJHh05C0FVak9fnynFw4A5AZyk1+S3eOaoNIOID6yQ20HLA==}
+    peerDependencies:
+      electron: '>11'
+
+  '@ghostery/adblocker-extended-selectors@2.18.0':
+    resolution: {integrity: sha512-oeSb/1liYplCq76rrPDmR7A69kNB6WsWjPfcsJFkrPip+WUd83Xbc+I5fnZ36Id3IOyegozZG1ucr3ywwC7OyQ==}
+
+  '@ghostery/adblocker@2.18.0':
+    resolution: {integrity: sha512-u0XWX+kZtBTqjfa+saNXMI2ZLzaoeT3tASjDuBqQ3WYKquLh15Z3nCBIPruT63nMRr41MZLwB8F6jZPIhsM3dA==}
+
+  '@ghostery/url-parser@1.3.1':
+    resolution: {integrity: sha512-QKqGi+7aDQ4RcyHyCwgEk6B9vWnsBP4Q7htaN0zPJV3ATqTKEQDtSTb9c/AN586oJUDs24YXKcwFYwNweY/YjQ==}
+
   '@isaacs/cliui@8.0.2':
     resolution: {integrity: sha512-O8jcjabXaleOG9DQ0+ARXWZBTfnP4WNAqzuiJK7ll44AmxGKv/J2M4TPjxjY3znBCfvBXFzucm1twdyFybFqEA==}
     engines: {node: '>=12'}
@@ -478,6 +510,24 @@ packages:
   '@pkgjs/parseargs@0.11.0':
     resolution: {integrity: sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==}
     engines: {node: '>=14'}
+
+  '@remusao/guess-url-type@2.1.0':
+    resolution: {integrity: sha512-zI3dlTUxpjvx2GCxp9nLOSK5yEIqDCpxlAVGwb2Y49RKkS72oeNaxxo+VWS5+XQ5+Mf8Zfp9ZXIlk+G5eoEN8A==}
+
+  '@remusao/small@2.1.0':
+    resolution: {integrity: sha512-Y1kyjZp7JU7dXdyOdxHVNfoTr1XLZJTyQP36/esZUU/WRWq9XY0PV2HsE3CsIHuaTf4pvgWv2pvzvnZ//UHIJQ==}
+
+  '@remusao/smaz-compress@2.2.0':
+    resolution: {integrity: sha512-TXpTPgILRUYOt2rEe0+9PC12xULPvBqeMpmipzB9A7oM4fa9Ztvy9lLYzPTd7tiQEeoNa1pmxihpKfJtsxnM/w==}
+
+  '@remusao/smaz-decompress@2.2.0':
+    resolution: {integrity: sha512-ERAPwxPaA0/yg4hkNU7T2S+lnp9jj1sApcQMtOyROvOQyo+Zuh6Hn/oRcXr8mmjlYzyRaC7E6r3mT1nrdHR6pg==}
+
+  '@remusao/smaz@2.2.0':
+    resolution: {integrity: sha512-eSd3Qs0ELP/e7tU1SI5RWXcCn9KjDgvBY+KtWbL4i2QvvHhJOfdIt4v0AA3S5BbLWAr5dCEC7C4LUfogDm6q/Q==}
+
+  '@remusao/trie@2.1.0':
+    resolution: {integrity: sha512-Er3Q8q0/2OcCJPQYJOPLmCuqO0wu7cav3SPtpjlxSbjFi1x+A1pZkkLD6c9q2rGEkGW/tkrRzfrhNMt8VQjzXg==}
 
   '@rolldown/pluginutils@1.0.0-beta.27':
     resolution: {integrity: sha512-+d0F4MKMCbeVUJwG96uQ4SgAznZNSq93I3V+9NHA4OpvqG8mRCpGdKmK8l/dl02h2CCDHwW2FqilnTyDcAnqjA==}
@@ -2318,6 +2368,12 @@ packages:
     resolution: {integrity: sha512-n1cw8k1k0x4pgA2+9XrOkFydTerNcJ1zWCO5Nn9scWHTD+5tp8dghT2x1uduQePZTZgd3Tupf+x9BxJjeJi77Q==}
     engines: {node: '>=14.0.0'}
 
+  tldts-core@7.4.4:
+    resolution: {integrity: sha512-vwVLJVvvpslm7vqAH7+XNj/neA/Ynq7DT2EEcMuwc5YzN5XaMyRAqxwU+uX3azZ1FQtB2gvrvnLnAEkvYlVdfg==}
+
+  tldts-experimental@7.4.4:
+    resolution: {integrity: sha512-L1xvJQNZQFrhjyAFmFlOoijmd9lSOvK6bGs0+z8Nz91UCAIyVIShwOsPPStuQH4XCFwif5Hlmcr6DnEz7Ag7Xw==}
+
   tmp-promise@3.0.3:
     resolution: {integrity: sha512-RwM7MoPojPxsOBYnyd2hy0bxtIlVrihNs9pj5SUvY8Zz1sQcQG2tG1hSr8PDxfgEB8RNKDhqbIlroIarSNDNsQ==}
 
@@ -2798,6 +2854,38 @@ snapshots:
 
   '@gar/promisify@1.1.3': {}
 
+  '@ghostery/adblocker-content@2.18.0':
+    dependencies:
+      '@ghostery/adblocker-extended-selectors': 2.18.0
+
+  '@ghostery/adblocker-electron-preload@2.18.0(electron@33.4.11)':
+    dependencies:
+      '@ghostery/adblocker-content': 2.18.0
+      electron: 33.4.11
+
+  '@ghostery/adblocker-electron@2.18.0(electron@33.4.11)':
+    dependencies:
+      '@ghostery/adblocker': 2.18.0
+      '@ghostery/adblocker-electron-preload': 2.18.0(electron@33.4.11)
+      electron: 33.4.11
+      tldts-experimental: 7.4.4
+
+  '@ghostery/adblocker-extended-selectors@2.18.0': {}
+
+  '@ghostery/adblocker@2.18.0':
+    dependencies:
+      '@ghostery/adblocker-content': 2.18.0
+      '@ghostery/adblocker-extended-selectors': 2.18.0
+      '@ghostery/url-parser': 1.3.1
+      '@remusao/guess-url-type': 2.1.0
+      '@remusao/small': 2.1.0
+      '@remusao/smaz': 2.2.0
+      tldts-experimental: 7.4.4
+
+  '@ghostery/url-parser@1.3.1':
+    dependencies:
+      tldts-experimental: 7.4.4
+
   '@isaacs/cliui@8.0.2':
     dependencies:
       string-width: 5.1.2
@@ -2863,6 +2951,23 @@ snapshots:
 
   '@pkgjs/parseargs@0.11.0':
     optional: true
+
+  '@remusao/guess-url-type@2.1.0': {}
+
+  '@remusao/small@2.1.0': {}
+
+  '@remusao/smaz-compress@2.2.0':
+    dependencies:
+      '@remusao/trie': 2.1.0
+
+  '@remusao/smaz-decompress@2.2.0': {}
+
+  '@remusao/smaz@2.2.0':
+    dependencies:
+      '@remusao/smaz-compress': 2.2.0
+      '@remusao/smaz-decompress': 2.2.0
+
+  '@remusao/trie@2.1.0': {}
 
   '@rolldown/pluginutils@1.0.0-beta.27': {}
 
@@ -4866,6 +4971,12 @@ snapshots:
   tinyrainbow@1.2.0: {}
 
   tinyspy@3.0.2: {}
+
+  tldts-core@7.4.4: {}
+
+  tldts-experimental@7.4.4:
+    dependencies:
+      tldts-core: 7.4.4
 
   tmp-promise@3.0.3:
     dependencies:

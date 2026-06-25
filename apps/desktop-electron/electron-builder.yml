@@ -11,6 +11,10 @@ files:
   - resources/**/*
   # sing-box is delivered as an external resource (see extraResources), never bundled into the asar.
   - '!resources/bin/**/*'
+  # The serialized ABP engine (~13 MB) ships only via extraResources below, not
+  # also in the asar — avoids doubling the payload. Runtime reads it from
+  # process.resourcesPath/adblock/engine.bin (GhosteryEngine candidates).
+  - '!resources/adblock/engine.bin'
 extraResources:
   # Copy the proxy binary to <resourcesPath>/bin so it stays outside the asar
   # and remains executable. ProxyClientService.resolveSingBoxPath() reads it
@@ -31,6 +35,10 @@ extraResources:
     to: adblock
     filter:
       - 'default-ads.txt'
+      # Serialized ABP engine (EasyList/EasyPrivacy/PeterLowe/Fanboy/AdGuard),
+      # built by scripts/build-adblock-engine.mjs in dist:win. Loaded by
+      # GhosteryEngine.deserialize(); legacy default-ads.txt remains the fallback.
+      - 'engine.bin'
 win:
   target:
     - nsis
