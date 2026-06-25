@@ -55,19 +55,17 @@
 ! selectors are deliberately precise (ad-/advert/banner/sponsor), never bare
 ! [class*="ad"] which would match header/shadow/loading on real sites.
 !
-! checkadblock.ru
+! checkadblock.ru — EXACT container ids from the live page (id="banner:gif" etc).
+! These are the Flash/GIF/Static/Yandex test blocks the user kept seeing; the
+! generic class rules never matched because they are IDs with a colon.
+checkadblock.ru##[id="banner:flash"]
+checkadblock.ru##[id="banner:gif"]
+checkadblock.ru##[id="banner:image"]
+checkadblock.ru##[id="ads:yandex"]
+checkadblock.ru##[id^="yandex_rtb"]
 checkadblock.ru##.adsbygoogle
 checkadblock.ru##ins.adsbygoogle
-checkadblock.ru##[id^="yandex_rtb"]
 checkadblock.ru##[id*="adfox"]
-checkadblock.ru##[class*="adfox"]
-checkadblock.ru##[class^="ad-"]
-checkadblock.ru##[class*="-ad-"]
-checkadblock.ru##[class*="advert"]
-checkadblock.ru##[class*="banner"]
-checkadblock.ru##[id^="ad-"]
-checkadblock.ru##[id*="-ad-"]
-checkadblock.ru##iframe[src*="/ads/"]
 !
 ! canyoublockit.com
 canyoublockit.com##.ad
