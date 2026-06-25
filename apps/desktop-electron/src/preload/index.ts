@@ -60,7 +60,11 @@ export interface AlphaApi {
     create: (payload?: { url?: string }) => Promise<BrowserStateSnapshot>;
     close: (tabId: string) => Promise<BrowserStateSnapshot>;
     switch: (tabId: string) => Promise<BrowserStateSnapshot>;
-    navigate: (tabId: string, input: string) => Promise<BrowserStateSnapshot>;
+    navigate: (
+      tabId: string,
+      input: string,
+      meta?: { source?: 'toolbar' | 'home' | 'ntp'; suggestionKind?: string },
+    ) => Promise<BrowserStateSnapshot>;
     goBack: (tabId?: string) => Promise<BrowserStateSnapshot>;
     goForward: (tabId?: string) => Promise<BrowserStateSnapshot>;
     reload: (tabId?: string) => Promise<BrowserStateSnapshot>;
@@ -305,8 +309,13 @@ const alphaApi: AlphaApi = {
       ipcRenderer.invoke('tabs:create', payload ?? {}) as Promise<BrowserStateSnapshot>,
     close: (tabId) => ipcRenderer.invoke('tabs:close', { tabId }) as Promise<BrowserStateSnapshot>,
     switch: (tabId) => ipcRenderer.invoke('tabs:switch', { tabId }) as Promise<BrowserStateSnapshot>,
-    navigate: (tabId, input) =>
-      ipcRenderer.invoke('tabs:navigate', { tabId, input }) as Promise<BrowserStateSnapshot>,
+    navigate: (tabId, input, meta) =>
+      ipcRenderer.invoke('tabs:navigate', {
+        tabId,
+        input,
+        source: meta?.source,
+        suggestionKind: meta?.suggestionKind,
+      }) as Promise<BrowserStateSnapshot>,
     goBack: (tabId) =>
       ipcRenderer.invoke('tabs:goBack', { tabId }) as Promise<BrowserStateSnapshot>,
     goForward: (tabId) =>

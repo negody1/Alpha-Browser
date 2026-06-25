@@ -20,6 +20,7 @@ import {
 import { FAVICON_FALLBACK_URL, type OmniboxSuggestion } from '@alpha/shared-types';
 import { selectActiveTab, useBrowserStore } from '../store/tabsStore';
 import { useOmnibox } from '../hooks/useOmnibox';
+import { activateSuggestion as runActivation } from '../lib/activateSuggestion';
 import { RouteBadge } from './RouteBadge';
 import { tabAddressValue } from './TabBar';
 
@@ -135,18 +136,15 @@ export function Toolbar() {
     setSelectedIndex(-1);
   }
 
+  // Single shared activation path — identical to Home/NTP, so click and Enter in
+  // the toolbar behave exactly like everywhere else (search → query, never url).
   function activateSuggestion(s: OmniboxSuggestion) {
-    if (!activeTabId) return;
-    if (s.kind === 'open-tab' && s.tabId) {
-      void window.alpha.tabs.switch(s.tabId);
-    } else {
-      // P0 fix: for a SEARCH suggestion navigate by its query text (built fresh
-      // into a proper search URL) instead of a pre-resolved URL — this prevents
-      // the "blank Google" bug. For url/history use the exact target URL.
-      const target = s.kind === 'search' ? (s.title?.trim() || s.url) : (s.url || s.title);
-      if (!target || !target.trim()) return;
-      void window.alpha.tabs.navigate(activeTabId, target);
-    }
+    runActivation(s, {
+      source: 'toolbar',
+      activeTabId,
+      navigate: (tabId, input, meta) => void window.alpha.tabs.navigate(tabId, input, meta),
+      switchTab: (tabId) => void window.alpha.tabs.switch(tabId),
+    });
     closeOmnibox();
     inputRef.current?.blur();
   }
@@ -160,7 +158,7 @@ export function Toolbar() {
     if (!activeTabId || !draft.trim()) {
       return;
     }
-    await window.alpha.tabs.navigate(activeTabId, draft);
+    await window.alpha.tabs.navigate(activeTabId, draft, { source: 'toolbar' });
     closeOmnibox();
     inputRef.current?.blur();
   }

@@ -344,12 +344,22 @@ export interface ShortcutLink {
  */
 export type OmniboxSuggestionKind = 'open-tab' | 'history' | 'shortcut' | 'search' | 'url';
 
+/** Where a suggestion activation originated — for debug logging + parity checks. */
+export type OmniboxSource = 'toolbar' | 'home' | 'ntp';
+
 export interface OmniboxSuggestion {
   kind: OmniboxSuggestionKind;
   /** Display title (falls back to host/url when unknown). */
   title: string;
   /** Resolved navigation target. Always set for MVP kinds. */
   url: string;
+  /**
+   * The raw user query this suggestion searches for. Set for kind==='search'
+   * (and any future history-query kind). The shared activation resolver uses
+   * THIS for search — never `url` — so a search can never open a query-less
+   * google.com/webhp.
+   */
+  query?: string;
   /** Registrable-ish host (www stripped) when applicable. */
   host: string | null;
   favicon: string | null;

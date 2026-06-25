@@ -161,6 +161,9 @@ export class OmniboxService {
       kind: isUrl ? 'url' : 'search',
       title: input,
       url: resolved,
+      // For a search, carry the raw query so the activation resolver searches by
+      // text rather than the pre-resolved url (which is what caused webhp).
+      query: isUrl ? undefined : input,
       host: isUrl ? hostFromUrl(resolved) : null,
       favicon: null,
       score: Number.MAX_SAFE_INTEGER,

@@ -5,6 +5,7 @@ import { useBrowserStore } from '../store/tabsStore';
 import { useOmnibox } from '../hooks/useOmnibox';
 import { WorkspaceCards } from '../components/WorkspaceCards';
 import { QuickLinks } from '../components/QuickLinks';
+import { activateSuggestion } from '../lib/activateSuggestion';
 
 /** Pick a small leading glyph per suggestion kind (visual parity with the omnibox). */
 function SuggestionIcon({ kind }: { kind: OmniboxSuggestion['kind'] }) {
@@ -28,26 +29,24 @@ export function NewTabPage() {
 
   async function navigate(input: string) {
     if (!activeTabId || !input.trim()) return;
-    await window.alpha.tabs.navigate(activeTabId, input);
+    await window.alpha.tabs.navigate(activeTabId, input, { source: 'home' });
   }
 
+  // Single shared activation path (search → query, url/history → url, tab → switch).
   function activate(s: OmniboxSuggestion) {
-    if (!activeTabId) return;
-    if (s.kind === 'open-tab' && s.tabId) {
-      void window.alpha.tabs.switch(s.tabId);
-    } else {
-      // P0: search → navigate by the exact query text (fresh, correct search URL);
-      // url/history → exact URL. Never a query-less Google.
-      const target = s.kind === 'search' ? (s.title?.trim() || s.url) : (s.url || s.title);
-      if (!target || !target.trim()) return;
-      void window.alpha.tabs.navigate(activeTabId, target);
-    }
+    activateSuggestion(s, {
+      source: 'home',
+      activeTabId,
+      navigate: (tabId, input, meta) => void window.alpha.tabs.navigate(tabId, input, meta),
+      switchTab: (tabId) => void window.alpha.tabs.switch(tabId),
+    });
     setSelectedIndex(-1);
     inputRef.current?.blur();
   }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    // Enter shares the exact same activation path as a click.
     if (selectedIndex >= 0 && suggestions[selectedIndex]) {
       activate(suggestions[selectedIndex]);
       return;
