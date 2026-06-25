@@ -147,6 +147,8 @@ export class AdblockService {
     cosmeticEnabled: boolean;
     networkBlockedTotal: number;
     cosmeticInjectCount: number;
+    cssAppliedCount: number;
+    cssBytesTotal: number;
     cosmeticForSite: { cssBytes: number; selectors: number; scriptlets: number; extended: number } | null;
     siteHost: string | null;
     siteEnabled: boolean;
@@ -159,6 +161,8 @@ export class AdblockService {
       cosmeticEnabled: this.ghostery?.cosmeticsActive() ?? false,
       networkBlockedTotal: this.blockedTotal,
       cosmeticInjectCount: this.ghostery?.getInjectCount() ?? 0,
+      cssAppliedCount: this.ghostery?.getCssAppliedCount() ?? 0,
+      cssBytesTotal: this.ghostery?.getCssBytesTotal() ?? 0,
       cosmeticForSite: activeUrl ? (this.ghostery?.getCosmeticStatsForUrl(activeUrl) ?? null) : null,
       siteHost: host || null,
       siteEnabled: !disabled,

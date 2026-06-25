@@ -366,6 +366,8 @@ export interface AdblockDebugStatus {
   cosmeticEnabled: boolean;
   networkBlockedTotal: number;
   cosmeticInjectCount: number;
+  cssAppliedCount: number;
+  cssBytesTotal: number;
   cosmeticForSite: { cssBytes: number; selectors: number; scriptlets: number; extended: number } | null;
   siteHost: string | null;
   siteEnabled: boolean;

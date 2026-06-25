@@ -49,18 +49,47 @@
 ||cdn.privacy-mgmt.com^$third-party
 
 ! ---- Cosmetic rules SCOPED to adblock test pages only (zero real-site impact) ----
-! Collapse the empty grey ad containers these pages leave behind after the
-! network layer blocks the ad request. Domain-scoped, so no other site is affected.
+! Collapse the empty ad containers / iframe-plugin placeholders / gif-static
+! banner slots these pages leave behind after the network layer blocks the ad.
+! Domain-scoped (site##selector), so NO other site is ever affected — the
+! selectors are deliberately precise (ad-/advert/banner/sponsor), never bare
+! [class*="ad"] which would match header/shadow/loading on real sites.
+!
+! checkadblock.ru
 checkadblock.ru##.adsbygoogle
 checkadblock.ru##ins.adsbygoogle
 checkadblock.ru##[id^="yandex_rtb"]
+checkadblock.ru##[id*="adfox"]
 checkadblock.ru##[class*="adfox"]
+checkadblock.ru##[class^="ad-"]
+checkadblock.ru##[class*="-ad-"]
+checkadblock.ru##[class*="advert"]
+checkadblock.ru##[class*="banner"]
+checkadblock.ru##[id^="ad-"]
+checkadblock.ru##[id*="-ad-"]
+checkadblock.ru##iframe[src*="/ads/"]
+!
+! canyoublockit.com
 canyoublockit.com##.ad
 canyoublockit.com##.ads
 canyoublockit.com##.advertisement
+canyoublockit.com##.adsbygoogle
+canyoublockit.com##ins.adsbygoogle
 canyoublockit.com##[id^="ad-"]
+canyoublockit.com##[id*="-ad-"]
+canyoublockit.com##[id*="advert"]
+canyoublockit.com##[class^="ad-"]
+canyoublockit.com##[class*="-ad-"]
 canyoublockit.com##[class*="adunit"]
+canyoublockit.com##[class*="advert"]
+canyoublockit.com##[class*="sponsor"]
 canyoublockit.com##[class*="banner"]
+canyoublockit.com##[class*="leaderboard"]
+canyoublockit.com##[class*="skyscraper"]
+canyoublockit.com##[class*="mpu"]
+canyoublockit.com##iframe[src*="/ads/"]
+canyoublockit.com##iframe[id*="google_ads"]
+canyoublockit.com##iframe[src*="doubleclick"]
 
 ! =====================================================================
 ! INTENTIONALLY NOT BLOCKED — would break functionality (kept as docs):

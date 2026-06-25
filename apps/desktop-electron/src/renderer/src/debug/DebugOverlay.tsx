@@ -90,7 +90,8 @@ export function DebugOverlay() {
             <li>engine: <b>{adblock.engine}</b></li>
             <li>cosmetic enabled: <b className={adblock.cosmeticEnabled ? 'ok' : 'bad'}>{String(adblock.cosmeticEnabled)}</b></li>
             <li>network blocked (total): <b>{adblock.networkBlockedTotal}</b></li>
-            <li>cosmetic inject calls: <b className={adblock.cosmeticInjectCount > 0 ? 'ok' : 'bad'}>{adblock.cosmeticInjectCount}</b></li>
+            <li>cosmetic CSS applied (main): <b className={adblock.cssAppliedCount > 0 ? 'ok' : 'bad'}>{adblock.cssAppliedCount}</b> ({adblock.cssBytesTotal} bytes)</li>
+            <li>cosmetic inject calls (preload): <b className={adblock.cosmeticInjectCount > 0 ? 'ok' : 'bad'}>{adblock.cosmeticInjectCount}</b></li>
             <li>site: <b>{adblock.siteHost ?? '—'}</b> ({adblock.siteEnabled ? 'on' : 'OFF'}{adblock.globalEnabled ? '' : ', global OFF'})</li>
             <li>
               cosmetic rules for site:{' '}

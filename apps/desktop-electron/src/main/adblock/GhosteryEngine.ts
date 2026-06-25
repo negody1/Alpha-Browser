@@ -1,4 +1,4 @@
-import { app, ipcMain, type Session } from 'electron';
+import { app, ipcMain, webContents as webContentsModule, type Session, type WebContents } from 'electron';
 import type { OnBeforeRequestListenerDetails } from 'electron';
 import { existsSync, readFileSync, writeFileSync, mkdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
@@ -41,6 +41,9 @@ export class GhosteryEngine {
   private loadedFrom: string | null = null;
   private cosmeticEnabled = false;
   private injectCount = 0;
+  private cssApplied = 0;
+  private cssBytesTotal = 0;
+  private wcHookInstalled = false;
   private readonly cosmeticSessions = new WeakSet<Session>();
 
   isReady(): boolean {
@@ -51,9 +54,64 @@ export class GhosteryEngine {
     return this.cosmeticEnabled;
   }
 
-  /** Number of cosmetic-inject IPC calls served (proves the preload pipeline is live). */
+  /** Number of cosmetic-inject IPC calls served by the preload pipeline. */
   getInjectCount(): number {
     return this.injectCount;
+  }
+
+  /** Times the base cosmetic stylesheet was applied directly (main-side insertCSS). */
+  getCssAppliedCount(): number {
+    return this.cssApplied;
+  }
+
+  getCssBytesTotal(): number {
+    return this.cssBytesTotal;
+  }
+
+  /** Naive registrable domain (good enough for cosmetic domain-scoped matching). */
+  private registrableDomain(hostname: string): string {
+    const p = hostname.split('.');
+    return p.length <= 2 ? hostname : p.slice(-2).join('.');
+  }
+
+  /**
+   * Apply the base + hostname cosmetic stylesheet to a page DIRECTLY from main
+   * (insertCSS), independent of the Ghostery preload pipeline. This is the
+   * reliable path that hides empty ad containers / iframe-plugin placeholders /
+   * static banner slots: the generic + hostname hiding rules don't need page DOM
+   * info, so they can be injected on dom-ready without any renderer round-trip.
+   * Scriptlets are intentionally left to the preload path (timing-sensitive).
+   */
+  injectBaseCosmetics(wc: WebContents, url: string): void {
+    if (!this.blocker || wc.isDestroyed()) return;
+    try {
+      const hostname = new URL(url).hostname.toLowerCase();
+      const { active, styles } = this.blocker.getCosmeticsFilters({
+        url,
+        hostname,
+        domain: this.registrableDomain(hostname),
+        getBaseRules: true,
+        getInjectionRules: true,
+        getRulesFromHostname: true,
+      }) as { active?: boolean; styles?: string };
+      if (active === false) return;
+      if (styles && styles.length > 0) {
+        void wc.insertCSS(styles, { cssOrigin: 'user' });
+        this.cssApplied += 1;
+        this.cssBytesTotal += styles.length;
+        if (ADBLOCK_DBG()) {
+          console.log('[alpha][adblock-dbg] base cosmetics applied (insertCSS)', {
+            url: shortUrl(url),
+            cssBytes: styles.length,
+            cssApplied: this.cssApplied,
+          });
+        }
+      } else if (ADBLOCK_DBG()) {
+        console.log('[alpha][adblock-dbg] base cosmetics: no styles for', { url: shortUrl(url) });
+      }
+    } catch (err) {
+      if (ADBLOCK_DBG()) console.log('[alpha][adblock-dbg] base cosmetics error', { err: String(err) });
+    }
   }
 
   /** Cosmetic rules AVAILABLE for a page (generic + hostname), for the debug overlay. */
@@ -199,6 +257,29 @@ export class GhosteryEngine {
         console.warn('[alpha][adblock] cosmetic session wiring failed', { err: String(err) });
       }
     }
+    // RELIABLE PATH: inject the base cosmetic stylesheet directly on every guest
+    // page load, independent of the preload pipeline. Hooked once, globally.
+    if (!this.wcHookInstalled) {
+      this.wcHookInstalled = true;
+      const hook = (wc: WebContents): void => {
+        const apply = (): void => {
+          try {
+            const u = wc.getURL();
+            if (allowedPage(u)) this.injectBaseCosmetics(wc, u);
+          } catch {
+            /* ignore */
+          }
+        };
+        wc.on('dom-ready', apply);
+      };
+      app.on('web-contents-created', (_e, wc) => hook(wc));
+      try {
+        for (const wc of webContentsModule.getAllWebContents()) hook(wc);
+      } catch {
+        /* ignore */
+      }
+    }
+
     this.cosmeticEnabled = true;
     console.log('[alpha][adblock] cosmetic + scriptlet + CSP enabled', {
       sessions: sessions.length,
