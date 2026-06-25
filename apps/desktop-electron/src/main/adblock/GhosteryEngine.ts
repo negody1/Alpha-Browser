@@ -3,7 +3,7 @@ import type { OnBeforeRequestListenerDetails } from 'electron';
 import { existsSync, readFileSync, writeFileSync, mkdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
-import { ElectronBlocker, fromElectronDetails } from '@ghostery/adblocker-electron';
+import { ElectronBlocker, fromElectronDetails, Request } from '@ghostery/adblocker-electron';
 
 /** ALPHA_DEBUG_ADBLOCK=1 — verbose adblock diagnostics. */
 const ADBLOCK_DBG = (): boolean => process.env.ALPHA_DEBUG_ADBLOCK === '1';
@@ -335,10 +335,45 @@ export class GhosteryEngine {
    * Network decision for a single request. Never throws (returns no-block on any
    * error). The caller already guarantees mainFrame is excluded.
    */
+  /**
+   * Recover the request initiator. Electron's onBeforeRequest `referrer` is very
+   * often empty, and fromElectronDetails uses ONLY referrer as the source — so
+   * without this, $third-party rules (a large part of EasyPrivacy/AdGuard and our
+   * supplement) never evaluate as third-party and silently fail to block ON EVERY
+   * SITE. We fall back to the initiating frame's URL, then the tab URL.
+   */
+  private sourceUrlFor(details: OnBeforeRequestListenerDetails): string {
+    if (details.referrer) return details.referrer;
+    try {
+      const frameUrl = details.frame?.url;
+      if (frameUrl) return frameUrl;
+    } catch {
+      /* frame navigated/destroyed */
+    }
+    try {
+      const tabUrl = details.webContents?.getURL();
+      if (tabUrl) return tabUrl;
+    } catch {
+      /* ignore */
+    }
+    return '';
+  }
+
   match(details: OnBeforeRequestListenerDetails): GhosteryDecision {
     if (!this.blocker) return { block: false };
     try {
-      const res = this.blocker.match(fromElectronDetails(details));
+      const sourceUrl = this.sourceUrlFor(details);
+      const request = sourceUrl
+        ? Request.fromRawDetails({
+            _originalRequestDetails: details,
+            requestId: `${details.id}`,
+            sourceUrl,
+            tabId: details.webContentsId,
+            type: details.resourceType || 'other',
+            url: details.url,
+          })
+        : fromElectronDetails(details);
+      const res = this.blocker.match(request);
       if (res.redirect?.dataUrl) return { block: false, redirectUrl: res.redirect.dataUrl };
       if (res.rewrite?.url) return { block: false, redirectUrl: res.rewrite.url };
       return { block: res.match === true };
