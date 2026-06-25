@@ -329,6 +329,22 @@ export class TabManager {
     }
   }
 
+  /**
+   * Temporarily hide the active page view so a shell-DOM overlay (the debug
+   * panel) can be seen — a guest WebContentsView is a native view stacked above
+   * the shell HTML. Safe no-op if there is no active web view.
+   */
+  setActiveViewVisible(visible: boolean): void {
+    const entry = this.activeTabId ? this.tabs.get(this.activeTabId) : null;
+    const view = entry?.view;
+    if (!view || view.webContents.isDestroyed()) return;
+    try {
+      view.setVisible(visible);
+    } catch {
+      /* ignore */
+    }
+  }
+
   switchTab(tabId: string): BrowserStateSnapshot {
     if (!this.tabs.has(tabId)) {
       return this.getState();

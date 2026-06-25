@@ -17,6 +17,9 @@ export function DebugOverlay() {
   const activeUrl = activeTab?.url;
 
   useEffect(() => {
+    // Primary: the main-process menu accelerator (works even when a web page has
+    // focus). Fallback: a renderer keydown for when the shell itself is focused.
+    const offToggle = window.alpha.debug.onToggle(() => setOpen((v) => !v));
     function onKey(e: KeyboardEvent) {
       if (e.ctrlKey && e.shiftKey && (e.key === 'D' || e.key === 'd')) {
         e.preventDefault();
@@ -24,7 +27,10 @@ export function DebugOverlay() {
       }
     }
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    return () => {
+      offToggle();
+      window.removeEventListener('keydown', onKey);
+    };
   }, []);
 
   const refresh = useCallback(async () => {
@@ -41,6 +47,9 @@ export function DebugOverlay() {
   }, [activeUrl]);
 
   useEffect(() => {
+    // Hide/show the native page view so this shell-DOM panel is actually visible
+    // above a loaded web page.
+    void window.alpha.debug.setOverlayOpen(open);
     if (!open) return;
     void refresh();
     const id = setInterval(() => void refresh(), 1500);

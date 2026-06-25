@@ -531,6 +531,15 @@ function installAppMenu(): void {
         { label: 'Увеличить', accelerator: 'CommandOrControl+=', click: () => mainWindow && tabManager?.zoomActiveTab('in') },
         { label: 'Уменьшить', accelerator: 'CommandOrControl+-', click: () => mainWindow && tabManager?.zoomActiveTab('out') },
         { label: 'Сбросить масштаб', accelerator: 'CommandOrControl+0', click: () => mainWindow && tabManager?.zoomActiveTab('reset') },
+        { type: 'separator' },
+        // Debug overlay toggle. A menu accelerator fires regardless of whether
+        // the chrome shell or a guest page has keyboard focus (a renderer keydown
+        // listener would miss it while a web page is focused).
+        {
+          label: 'Alpha Debug',
+          accelerator: 'CommandOrControl+Shift+D',
+          click: () => mainWindow?.webContents.send('alpha:debug:toggle'),
+        },
       ],
     },
   ]);
@@ -560,7 +569,7 @@ app.whenReady().then(() => {
   registerHistoryIpc(() => historyStore, () => tabManager?.broadcastHistory());
   registerDownloadsIpc(() => downloadsService);
   registerAdblockIpc(() => adblockService);
-  registerDebugIpc(() => adblockService);
+  registerDebugIpc(() => adblockService, () => tabManager);
   registerPasswordsIpc(
     () => passwordService,
     () => {

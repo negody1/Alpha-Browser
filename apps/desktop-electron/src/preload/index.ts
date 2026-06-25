@@ -240,6 +240,8 @@ export interface AlphaApi {
     navLog: () => Promise<NavDebugEntry[]>;
     navClear: () => Promise<boolean>;
     adblockStatus: (url?: string) => Promise<AdblockDebugStatus | null>;
+    onToggle: (listener: () => void) => () => void;
+    setOverlayOpen: (open: boolean) => Promise<boolean>;
   };
 }
 
@@ -584,6 +586,13 @@ const alphaApi: AlphaApi = {
     navClear: () => ipcRenderer.invoke('alpha:debug:navClear') as Promise<boolean>,
     adblockStatus: (url?: string) =>
       ipcRenderer.invoke('alpha:debug:adblockStatus', { url }) as Promise<AdblockDebugStatus | null>,
+    onToggle: (listener: () => void) => {
+      const handler = () => listener();
+      ipcRenderer.on('alpha:debug:toggle', handler);
+      return () => ipcRenderer.removeListener('alpha:debug:toggle', handler);
+    },
+    setOverlayOpen: (open: boolean) =>
+      ipcRenderer.invoke('alpha:debug:setOverlayOpen', { open }) as Promise<boolean>,
   },
 };
 
